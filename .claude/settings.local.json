@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git)",
+      "Read(//Users/jamilecurygandaradosreis/**)",
+      "Read(//opt/**)",
+      "Read(//Applications/**)",
+      "Bash(brew --version)"
+    ]
+  }
+}
