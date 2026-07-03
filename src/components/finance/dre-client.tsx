@@ -178,7 +178,7 @@ export function DreClient({ dre: initialDre, cashFlow, currentMonth, currentYear
                   <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false}
                     tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={48} />
                   <Tooltip
-                    formatter={(v: number, name: string) => [formatCurrency(v), name === "income" ? "Entradas" : name === "expense" ? "Saídas" : "Saldo"]}
+                    formatter={(v, name) => [formatCurrency(v as number), name === "income" ? "Entradas" : name === "expense" ? "Saídas" : "Saldo"]}
                     contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12 }}
                   />
                   <Legend formatter={(v) => v === "income" ? "Entradas" : v === "expense" ? "Saídas" : "Saldo"} />
