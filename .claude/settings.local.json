@@ -7,7 +7,32 @@
       "Read(//Users/jamilecurygandaradosreis/**)",
       "Read(//opt/**)",
       "Read(//Applications/**)",
-      "Bash(brew --version)"
+      "Bash(brew --version)",
+      "Bash(ls /Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3ea04016d65053bd/node_modules/@prisma/client 2>/dev/null | head -5 || echo \"not found\")",
+      "Bash(npx tsc *)",
+      "Bash(rm node_modules)",
+      "Bash(ln -s /Users/jamilecurygandaradosreis/Desktop/volare.erp/node_modules node_modules)",
+      "Read(//Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3ea04016d65053bd/node_modules/@prisma/**)",
+      "Bash(git merge *)",
+      "Bash(cp -r /Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3746662becb747ca/src/components/commissions /Users/jamilecurygandaradosreis/Desktop/volare.erp/src/components/)",
+      "Bash(cp -r /Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3746662becb747ca/src/components/labels /Users/jamilecurygandaradosreis/Desktop/volare.erp/src/components/)",
+      "Bash(cp -r /Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3746662becb747ca/src/components/reports /Users/jamilecurygandaradosreis/Desktop/volare.erp/src/components/)",
+      "Bash(cp -r '/Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3746662becb747ca/src/app/\\(dashboard\\)/commissions' '/Users/jamilecurygandaradosreis/Desktop/volare.erp/src/app/\\(dashboard\\)/')",
+      "Bash(cp -r '/Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3746662becb747ca/src/app/\\(dashboard\\)/labels' '/Users/jamilecurygandaradosreis/Desktop/volare.erp/src/app/\\(dashboard\\)/')",
+      "Bash(cp '/Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a83141ed6496b7dc1/src/app/\\(dashboard\\)/products/[id]/page.tsx' '/Users/jamilecurygandaradosreis/Desktop/volare.erp/src/app/\\(dashboard\\)/products/[id]/')",
+      "Bash(cp '/Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a83141ed6496b7dc1/src/app/\\(dashboard\\)/customers/[id]/page.tsx' '/Users/jamilecurygandaradosreis/Desktop/volare.erp/src/app/\\(dashboard\\)/customers/[id]/')",
+      "Bash(cp -r /Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a83141ed6496b7dc1/src/components/catalog /Users/jamilecurygandaradosreis/Desktop/volare.erp/src/components/)",
+      "Bash(cp -r '/Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a83141ed6496b7dc1/src/app/\\(dashboard\\)/catalog' '/Users/jamilecurygandaradosreis/Desktop/volare.erp/src/app/\\(dashboard\\)/')",
+      "Bash(cp -r /Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3ea04016d65053bd/src/components/caixa /Users/jamilecurygandaradosreis/Desktop/volare.erp/src/components/)",
+      "Bash(cp -r /Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3ea04016d65053bd/src/components/warranties /Users/jamilecurygandaradosreis/Desktop/volare.erp/src/components/)",
+      "Bash(cp -r /Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3ea04016d65053bd/src/components/service /Users/jamilecurygandaradosreis/Desktop/volare.erp/src/components/)",
+      "Bash(cp -r '/Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3ea04016d65053bd/src/app/\\(dashboard\\)/caixa' '/Users/jamilecurygandaradosreis/Desktop/volare.erp/src/app/\\(dashboard\\)/')",
+      "Bash(cp -r '/Users/jamilecurygandaradosreis/Desktop/volare.erp/.claude/worktrees/agent-a3ea04016d65053bd/src/app/\\(dashboard\\)/warranties' '/Users/jamilecurygandaradosreis/Desktop/volare.erp/src/app/\\(dashboard\\)/')",
+      "Bash(npx prisma *)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(npm run *)",
+      "Read(//tmp/**)",
+      "Bash(xargs cat)"
     ]
   }
 }

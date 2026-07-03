@@ -1,26 +1,132 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Volare — Escala Vinho/Bordô */
+  --color-wine-50:  #fdf2f5;
+  --color-wine-100: #fbe8ee;
+  --color-wine-200: #f5c8d7;
+  --color-wine-300: #e994b0;
+  --color-wine-400: #d45c83;
+  --color-wine-500: #b8305a;
+  --color-wine-600: #8c1a3c;
+  --color-wine-700: #6e1230;
+  --color-wine-800: #510d23;
+  --color-wine-900: #360816;
+
+  /* Volare — Escala Dourado */
+  --color-gold-50:  #fdf9f0;
+  --color-gold-100: #faf0d8;
+  --color-gold-200: #f3d9a0;
+  --color-gold-300: #e8be68;
+  --color-gold-400: #d4993a;
+  --color-gold-500: #c9a055;
+  --color-gold-600: #a07c34;
+  --color-gold-700: #7c5e25;
+  --color-gold-800: #5a4218;
+  --color-gold-900: #3a290e;
+
+  /* Volare — Escala Creme */
+  --color-cream-50:  #ffffff;
+  --color-cream-100: #fdfcf9;
+  --color-cream-200: #f7f3ec;
+  --color-cream-300: #ede8e0;
+  --color-cream-400: #dfd7cc;
+  --color-cream-500: #cec3b5;
+  --color-cream-600: #b3a493;
+  --color-cream-700: #8f8070;
+  --color-cream-800: #655d51;
+  --color-cream-900: #3f3930;
+
+  /* Teal escuro (versão complementar da marca) */
+  --color-teal-600: #1a5c4a;
+  --color-teal-700: #144a3a;
+  --color-teal-800: #0e382c;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #ede8e0;
+  --foreground: #2a1e1e;
+  --card: #ffffff;
+  --card-foreground: #2a1e1e;
+  --popover: #ffffff;
+  --popover-foreground: #2a1e1e;
+  --primary: #8c1a3c;
+  --primary-foreground: #fdf2f5;
+  --secondary: #f7f3ec;
+  --secondary-foreground: #2a1e1e;
+  --muted: #f7f3ec;
+  --muted-foreground: #8f8070;
+  --accent: #faf0d8;
+  --accent-foreground: #7c5e25;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #dfd7cc;
+  --input: #dfd7cc;
+  --ring: #8c1a3c;
+  --radius: 0.625rem;
+
+  /* Sidebar — vinho escuro */
+  --sidebar-background: #3d0c1e;
+  --sidebar-foreground: #fdf2f5;
+  --sidebar-border: #5a1530;
+  --sidebar-accent: #5a1530;
+  --sidebar-accent-foreground: #d4993a;
+  --sidebar-muted: #c4a0ae;
+}
+
+.dark {
+  --background: #1a0d10;
+  --foreground: #f7f0ed;
+  --card: #2a1015;
+  --card-foreground: #f7f0ed;
+  --popover: #2a1015;
+  --popover-foreground: #f7f0ed;
+  --primary: #d4993a;
+  --primary-foreground: #1a0d10;
+  --secondary: #3d1520;
+  --secondary-foreground: #f7f0ed;
+  --muted: #3d1520;
+  --muted-foreground: #b3a493;
+  --accent: #3d1520;
+  --accent-foreground: #f7f0ed;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #4a1a26;
+  --input: #4a1a26;
+  --ring: #d4993a;
+
+  --sidebar-background: #200810;
+  --sidebar-foreground: #fdf2f5;
+  --sidebar-border: #3d0c1e;
+  --sidebar-accent: #3d0c1e;
+  --sidebar-accent-foreground: #d4993a;
+  --sidebar-muted: #a07070;
+}
+
+* {
+  border-color: var(--border);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Scrollbar elegante */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
