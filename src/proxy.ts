@@ -16,7 +16,7 @@ const ROLE_ROUTES: Record<string, string[]> = {
   "/sales": ["ADMIN", "MANAGER", "SALES", "FINANCE"],
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(

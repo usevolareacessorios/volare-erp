@@ -31,7 +31,7 @@ export function SalesChart({ data }: Props) {
           width={48}
         />
         <Tooltip
-          formatter={(value: number) => [formatCurrency(value), "Faturamento"]}
+          formatter={(value) => [formatCurrency(value as number), "Faturamento"]}
           contentStyle={{
             backgroundColor: "#fff",
             border: "1px solid #e5e7eb",
