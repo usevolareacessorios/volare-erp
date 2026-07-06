@@ -239,7 +239,7 @@ model StockEntry {
   userId        String?           @map("user_id") @db.Uuid
   createdAt     DateTime          @default(now()) @map("created_at")
 
-  product Product  @relation(fields: [productId], references: [id])
+  product Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   user    Profile? @relation(fields: [userId], references: [id])
 
   @@map("stock_entries")
@@ -354,7 +354,7 @@ model PurchaseItem {
   total      Decimal @db.Decimal(10, 2)
 
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("purchase_items")
 }
@@ -426,7 +426,7 @@ model SaleItem {
   total     Decimal @db.Decimal(10, 2)
 
   sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("sale_items")
 }
@@ -598,7 +598,7 @@ model Warranty {
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
 
-  product  Product         @relation(fields: [productId], references: [id])
+  product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   customer Customer        @relation(fields: [customerId], references: [id])
   photos   WarrantyPhoto[]
 
@@ -657,7 +657,7 @@ model ServiceOrder {
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
   customer Customer       @relation(fields: [customerId], references: [id])
-  product  Product?       @relation(fields: [productId], references: [id])
+  product  Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
   photos   ServicePhoto[]
 
   @@map("service_orders")
