@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { prisma } from "@/lib/prisma"
+
+// Uses service role key to bypass RLS on storage
+function createAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Imagem deve ter no máximo 5 MB" }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg"
     const filename = `products/${productId}/${Date.now()}.${ext}`
@@ -26,24 +34,12 @@ export async function POST(req: NextRequest) {
       .from("volare-erp")
       .upload(filename, bytes, { contentType: file.type, upsert: false })
 
-    if (uploadError) {
-      // Bucket might not exist yet — try creating it
-      if (uploadError.message?.includes("Bucket not found") || uploadError.message?.includes("bucket")) {
-        await supabase.storage.createBucket("volare-erp", { public: true })
-        const { error: retryError } = await supabase.storage
-          .from("volare-erp")
-          .upload(filename, bytes, { contentType: file.type, upsert: false })
-        if (retryError) throw retryError
-      } else {
-        throw uploadError
-      }
-    }
+    if (uploadError) throw uploadError
 
     const { data: { publicUrl } } = supabase.storage
       .from("volare-erp")
       .getPublicUrl(filename)
 
-    // Count existing images to set order
     const count = await prisma.productImage.count({ where: { productId } })
 
     const image = await prisma.productImage.create({
@@ -58,6 +54,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: image.id, url: image.url, isPrimary: image.isPrimary })
   } catch (err) {
     console.error("upload-product-image error:", err)
-    return NextResponse.json({ error: "Erro ao fazer upload" }, { status: 500 })
+    const msg = err instanceof Error ? err.message : "Erro ao fazer upload"
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
