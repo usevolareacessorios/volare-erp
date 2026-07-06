@@ -120,6 +120,45 @@ export async function deleteFinancialEntry(id: string) {
   return { success: true }
 }
 
+export async function saveExpenseBatch(items: { categoryId: string; description: string; amount: number; dueDate: string }[]) {
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+  for (const item of items) {
+    // Check if there's already a MANUAL EXPENSE for this category this month
+    const existing = await prisma.financialEntry.findFirst({
+      where: {
+        type: "EXPENSE",
+        referenceType: "MANUAL",
+        categoryId: item.categoryId,
+        dueDate: { gte: startOfMonth, lte: endOfMonth },
+      },
+    })
+    if (existing) {
+      await prisma.financialEntry.update({
+        where: { id: existing.id },
+        data: { amount: item.amount, dueDate: new Date(item.dueDate), description: item.description },
+      })
+    } else {
+      await prisma.financialEntry.create({
+        data: {
+          type: "EXPENSE",
+          description: item.description,
+          amount: item.amount,
+          dueDate: new Date(item.dueDate),
+          categoryId: item.categoryId,
+          status: "PENDING",
+          referenceType: "MANUAL",
+        },
+      })
+    }
+  }
+
+  revalidatePath("/finance")
+  return { success: true }
+}
+
 export async function createFinancialCategory(data: { name: string; type: EntryType }) {
   await prisma.financialCategory.create({ data })
   revalidatePath("/finance")
