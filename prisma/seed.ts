@@ -47,6 +47,7 @@ const financialCategories: { name: string; type: "EXPENSE" | "INCOME" }[] = [
   // Despesas fixas mensais
   { name: "Aluguel / Espaço",                        type: "EXPENSE" },
   { name: "Energia elétrica",                        type: "EXPENSE" },
+  { name: "Água",                                    type: "EXPENSE" },
   { name: "Internet / Telefone",                     type: "EXPENSE" },
   { name: "Contador / Escritório contábil",          type: "EXPENSE" },
   { name: "Salários / Pró-labore",                   type: "EXPENSE" },
