@@ -4,10 +4,32 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { getProducts } from "@/lib/actions/products"
 import { ProductsList } from "@/components/products/products-list"
+import { ProductsPricing } from "@/components/products/products-pricing"
 import { Plus, Package, FileUp } from "lucide-react"
+import { prisma } from "@/lib/prisma"
+
+async function getMonthlyExpenses() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const entries = await prisma.financialEntry.findMany({
+    where: {
+      type: "EXPENSE",
+      dueDate: { gte: start, lte: end },
+    },
+    include: { category: true },
+  })
+  return entries
+}
 
 export default async function ProductsPage() {
-  const products = await getProducts()
+  const [products, expenses] = await Promise.all([
+    getProducts(),
+    getMonthlyExpenses(),
+  ])
+
+  const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0)
+  const activeProducts = products.filter((p) => p.status === "ACTIVE").length
 
   return (
     <div className="flex flex-col flex-1">
@@ -44,7 +66,31 @@ export default async function ProductsPage() {
             </CardContent>
           </Card>
         ) : (
-          <ProductsList products={products} />
+          <ProductsPricing
+            products={products.map((p) => ({
+              id: p.id,
+              name: p.name,
+              sku: p.sku,
+              status: p.status,
+              currentStock: p.currentStock,
+              salePrice: Number(p.salePrice),
+              costPrice: Number(p.costPrice),
+              freightCost: Number((p as any).freightCost ?? 0),
+              taxCost: Number((p as any).taxCost ?? 0),
+              commission: Number((p as any).commission ?? 0),
+              packaging: Number((p as any).packaging ?? 0),
+              otherCosts: Number((p as any).otherCosts ?? 0),
+              category: (p as any).category?.name ?? null,
+              images: (p as any).images ?? [],
+            }))}
+            totalExpenses={totalExpenses}
+            activeProducts={activeProducts}
+            expenses={expenses.map((e) => ({
+              description: e.description,
+              amount: Number(e.amount),
+              category: e.category?.name ?? "Sem categoria",
+            }))}
+          />
         )}
       </main>
     </div>
