@@ -144,26 +144,32 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
         setProducts((prev) => [
           ...prev,
           ...(data.products ?? []).map((p: any, pi: number) => {
-            const finalUnitCost = p.finalUnitCost > 0 ? p.finalUnitCost : p.unitCost
+            const unitCost = p.unitCost ?? 0
+            const discount = p.discount ?? 0
+            const ipi = p.ipi ?? 0
+            const icmsSt = p.icmsSt ?? 0
+            const freightRateio = p.freightRateio ?? 0
+            // Always recalculate from components — never trust AI's finalUnitCost blindly
+            const finalUnitCost = unitCost - discount + ipi + icmsSt + freightRateio || unitCost
+
             return {
               name: p.name,
               description: p.description ?? null,
               quantity: p.quantity ?? 1,
-              unitCost: p.unitCost ?? 0,
+              unitCost,
               totalCost: p.totalCost ?? 0,
-              discount: p.discount ?? 0,
-              ipi: p.ipi ?? 0,
-              icmsSt: p.icmsSt ?? 0,
-              freightRateio: p.freightRateio ?? 0,
+              discount,
+              ipi,
+              icmsSt,
+              freightRateio,
               finalUnitCost,
               unit: p.unit ?? "UN",
               material: p.material ?? null,
               categoryHint: p.categoryHint ?? null,
               ncm: p.ncm ?? null,
               referenceCode: p.referenceCode ?? null,
-              // mapped fields — custo base já inclui frete/imposto no finalUnitCost
-              freightCost: p.freightRateio ?? 0,
-              taxCost: (p.ipi ?? 0) + (p.icmsSt ?? 0),
+              freightCost: freightRateio,
+              taxCost: ipi + icmsSt,
               commission: 0,
               packaging: 0,
               otherCosts: 0,

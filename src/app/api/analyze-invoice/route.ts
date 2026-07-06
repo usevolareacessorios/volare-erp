@@ -3,26 +3,48 @@ import { NextRequest, NextResponse } from "next/server"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `Você é um assistente especializado em leitura de notas fiscais de semijoias e acessórios brasileiras (NF-e, NF, DANFE, faturas).
-Analise a imagem ou PDF e extraia TODOS os dados: cabeçalho da nota E cada item individualmente.
-Retorne APENAS um JSON válido, sem texto adicional, sem markdown, sem explicação.
+const SYSTEM_PROMPT = `Você é um assistente especializado em leitura de notas fiscais brasileiras (NF-e, DANFE, faturas) de semijoias e acessórios.
+Seu objetivo é calcular o CUSTO REAL de cada produto, distribuindo todos os encargos da nota proporcionalmente.
+Retorne APENAS JSON válido, sem markdown, sem texto adicional.
 
-Formato exato:
+PASSO 1 — Leia o cabeçalho da nota e extraia os totais:
+- totalProdutos: soma dos valores brutos dos itens (antes de qualquer acréscimo/desconto)
+- totalFreight: valor do frete (campo "Frete/Carreto" ou "Transporte")
+- totalDiscount: desconto total da nota (campo "Desconto")
+- totalIpi: IPI total
+- totalIcmsSt: ICMS Substituição Tributária total
+- totalPisCofins: PIS+COFINS total (se discriminado)
+- totalNota: valor total a pagar da nota
+
+PASSO 2 — Para CADA item, calcule:
+a) unitCost = preço unitário bruto do item (sem nenhum encargo)
+b) totalCost = unitCost × quantity
+c) proporcao = totalCost / totalProdutos  (participação % deste item no total)
+d) discount = desconto proporcional = totalDiscount × proporcao / quantity  (por unidade)
+e) ipi = IPI proporcional = totalIpi × proporcao / quantity
+f) icmsSt = ICMS-ST proporcional = totalIcmsSt × proporcao / quantity
+g) freightRateio = frete proporcional = totalFreight × proporcao / quantity
+h) finalUnitCost = unitCost - discount + ipi + icmsSt + freightRateio
+   (este é o custo real por unidade, considerando todos os encargos)
+
+IMPORTANTE: Se algum encargo já estiver discriminado por item na nota, use o valor do item. Só faça rateio proporcional quando o encargo estiver apenas no total da nota.
+
+Formato de resposta:
 {
   "supplier": "Nome do fornecedor/emitente",
   "invoiceNumber": "Número da nota",
-  "invoiceDate": "Data no formato YYYY-MM-DD",
+  "invoiceDate": "YYYY-MM-DD",
   "totalValue": 0.00,
   "totalFreight": 0.00,
   "totalDiscount": 0.00,
   "totalIpi": 0.00,
   "totalIcmsSt": 0.00,
   "totalPisCofins": 0.00,
-  "paymentTerms": "Condições de pagamento (ex: 30/60 dias, à vista) ou null",
+  "paymentTerms": "ex: 30/60 dias ou null",
   "products": [
     {
       "name": "Nome completo do produto",
-      "description": "Descrição adicional se houver, senão null",
+      "description": null,
       "quantity": 1,
       "unitCost": 0.00,
       "totalCost": 0.00,
@@ -32,24 +54,21 @@ Formato exato:
       "freightRateio": 0.00,
       "finalUnitCost": 0.00,
       "unit": "UN",
-      "material": "Material identificado ou null",
-      "categoryHint": "Categoria sugerida (Anel, Colar, Brinco, Pulseira, Broche, Pingente, etc) ou null",
-      "ncm": "Código NCM ou null",
-      "referenceCode": "Código de referência/produto do fornecedor ou null"
+      "material": "Aço Inoxidável | Prata 925 | Banhado a Ouro | Banhado a Prata | Latão | Zamac | null",
+      "categoryHint": "Anel | Brinco | Colar | Pulseira | Pingente | Broche | null",
+      "ncm": "00000000 ou null",
+      "referenceCode": "código do fornecedor ou null"
     }
   ]
 }
 
-Regras obrigatórias:
-- Extraia TODOS os itens da nota, sem exceção
-- Use ponto como separador decimal (ex: 29.90), nunca vírgula
-- Campos não encontrados: use 0 para números, null para textos
-- "name" é obrigatório
-- "finalUnitCost" = (unitCost - desconto unitário + IPI unitário + ICMS-ST unitário + frete rateado). Se não conseguir calcular, repita unitCost
-- Se o frete total da nota não está discriminado por item, faça o rateio proporcional ao valor de cada item
-- Se o desconto está em % na nota, converta para valor absoluto
-- Infira o material do nome quando possível: "prata" → "Prata 925", "dourado/banhado ouro" → "Banhado a Ouro", "aço" → "Aço Inoxidável"
-- Infira a categoria do nome: "anel" → "Anel", "colar/corrente" → "Colar", "brinco/ear" → "Brinco", "pulseira/bracelete" → "Pulseira", "pingente/charm" → "Pingente"`
+Regras finais:
+- Use ponto decimal (29.90), nunca vírgula
+- Campos numéricos não encontrados: 0. Textos não encontrados: null
+- Extraia TODOS os itens sem exceção
+- Verifique: soma de todos os finalUnitCost × quantity deve ser próxima ao totalNota
+- Material: infira do nome ("prata"→"Prata 925", "dourado/ouro"→"Banhado a Ouro", "aço"→"Aço Inoxidável")
+- Categoria: infira do nome ("anel"→"Anel", "colar/corrente/gargantilha"→"Colar", "brinco/ear"→"Brinco", "pulseira/bracelete/tornozeleira"→"Pulseira", "pingente/charm"→"Pingente")`
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
