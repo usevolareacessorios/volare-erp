@@ -100,6 +100,12 @@ export async function deleteProduct(id: string) {
   return { success: true }
 }
 
+export async function deleteProducts(ids: string[]) {
+  await prisma.product.deleteMany({ where: { id: { in: ids } } })
+  revalidatePath("/products")
+  return { success: true }
+}
+
 export async function getLookups() {
   const [categories, collections, brands, suppliers] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" } }),
