@@ -43,8 +43,34 @@ const collections = [
   "Verão",
 ]
 
+const financialCategories: { name: string; type: "EXPENSE" | "INCOME" }[] = [
+  // Despesas fixas mensais
+  { name: "Aluguel / Espaço",                        type: "EXPENSE" },
+  { name: "Energia elétrica",                        type: "EXPENSE" },
+  { name: "Internet / Telefone",                     type: "EXPENSE" },
+  { name: "Contador / Escritório contábil",          type: "EXPENSE" },
+  { name: "Salários / Pró-labore",                   type: "EXPENSE" },
+  { name: "Sistema / Software / Assinaturas",        type: "EXPENSE" },
+  { name: "Seguro",                                  type: "EXPENSE" },
+  // Despesas variáveis operacionais
+  { name: "Frete de compras (fornecedores)",         type: "EXPENSE" },
+  { name: "Taxas de marketplace (Shopee, ML, etc)",  type: "EXPENSE" },
+  { name: "Maquininha / Taxa de cartão",             type: "EXPENSE" },
+  { name: "Marketing / Tráfego pago",                type: "EXPENSE" },
+  { name: "Embalagens e materiais",                  type: "EXPENSE" },
+  { name: "Devoluções / Reposições",                 type: "EXPENSE" },
+  { name: "Transporte e entregas",                   type: "EXPENSE" },
+  { name: "Outros custos operacionais",              type: "EXPENSE" },
+  // Receitas
+  { name: "Vendas loja física",                      type: "INCOME" },
+  { name: "Vendas online / e-commerce",              type: "INCOME" },
+  { name: "Vendas marketplace",                      type: "INCOME" },
+  { name: "Vendas revendedoras",                     type: "INCOME" },
+  { name: "Outras receitas",                         type: "INCOME" },
+]
+
 async function main() {
-  console.log("Seeding categories...")
+  console.log("Seeding product categories...")
   for (const cat of categories) {
     const parent = await prisma.category.upsert({
       where: { name: cat.name },
@@ -67,6 +93,16 @@ async function main() {
       update: {},
       create: { name },
     })
+  }
+
+  console.log("Seeding financial categories...")
+  for (const cat of financialCategories) {
+    const existing = await prisma.financialCategory.findFirst({
+      where: { name: cat.name, type: cat.type },
+    })
+    if (!existing) {
+      await prisma.financialCategory.create({ data: cat })
+    }
   }
 
   console.log("Done!")
