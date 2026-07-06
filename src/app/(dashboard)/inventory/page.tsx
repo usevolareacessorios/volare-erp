@@ -6,11 +6,27 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Package, AlertTriangle, XCircle, ArrowLeftRight } from "lucide-react"
 
 export default async function InventoryPage() {
-  const [entries, summary, products] = await Promise.all([
+  const [entries, summary, allProducts] = await Promise.all([
     getStockEntries(),
     getStockSummary(),
     getProducts(),
   ])
+
+  const products = allProducts.map((p) => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    currentStock: p.currentStock,
+    minStock: p.minStock,
+    salePrice: Number(p.salePrice),
+    costPrice: Number(p.costPrice),
+    freightCost: Number((p as any).freightCost ?? 0),
+    taxCost: Number((p as any).taxCost ?? 0),
+    commission: Number((p as any).commission ?? 0),
+    packaging: Number((p as any).packaging ?? 0),
+    otherCosts: Number((p as any).otherCosts ?? 0),
+    category: (p as any).category?.name ?? null,
+  }))
 
   return (
     <div className="flex flex-col flex-1">
@@ -51,7 +67,7 @@ export default async function InventoryPage() {
           </CardContent></Card>
         </div>
 
-        <InventoryClient entries={entries} products={products} />
+        <InventoryClient entries={entries} products={products} pricingProducts={products} />
       </main>
     </div>
   )

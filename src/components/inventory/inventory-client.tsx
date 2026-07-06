@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { createManualEntry } from "@/lib/actions/inventory"
 import { formatDateTime } from "@/lib/utils"
-import { ArrowDown, ArrowUp, RefreshCw, Plus, Loader2, AlertTriangle } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { ArrowDown, ArrowUp, RefreshCw, Plus, Loader2, AlertTriangle, TrendingUp } from "lucide-react"
+import { cn, formatCurrency } from "@/lib/utils"
 
 type Entry = {
   id: string; type: string; quantity: number
@@ -20,6 +20,11 @@ type Entry = {
   product: { id: string; name: string; sku: string }
 }
 type Product = { id: string; name: string; sku: string; currentStock: number; minStock: number }
+type PricingProduct = {
+  id: string; name: string; sku: string; category: string | null
+  currentStock: number; salePrice: number; costPrice: number
+  freightCost: number; taxCost: number; commission: number; packaging: number; otherCosts: number
+}
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
   IN: <ArrowDown className="w-3.5 h-3.5 text-emerald-600" />,
@@ -31,12 +36,16 @@ const TYPE_VARIANT: Record<string, "success" | "destructive" | "warning"> = {
   IN: "success", OUT: "destructive", ADJUST: "warning",
 }
 
-export function InventoryClient({ entries, products }: { entries: Entry[]; products: Product[] }) {
+export function InventoryClient({ entries, products, pricingProducts }: {
+  entries: Entry[]; products: Product[]; pricingProducts: PricingProduct[]
+}) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [showNew, setShowNew] = useState(false)
-  const [tab, setTab] = useState<"movements" | "alerts">("movements")
+  const [tab, setTab] = useState<"movements" | "pricing" | "alerts">("movements")
   const [search, setSearch] = useState("")
+  const [pricingSearch, setPricingSearch] = useState("")
+  const [marginFilter, setMarginFilter] = useState<"all" | "low" | "ok" | "good">("all")
 
   const lowStock = products.filter((p) => p.currentStock <= p.minStock)
   const filteredEntries = entries.filter((e) =>
@@ -47,13 +56,15 @@ export function InventoryClient({ entries, products }: { entries: Entry[]; produ
     <>
       <div className="space-y-4">
         {/* Tabs */}
-        <div className="flex gap-1 p-1 rounded-lg bg-muted w-fit">
-          {(["movements", "alerts"] as const).map((t) => (
+        <div className="flex gap-1 p-1 rounded-lg bg-muted w-fit flex-wrap">
+          {(["movements", "pricing", "alerts"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={cn("px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
                 tab === t ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
               )}>
-              {t === "movements" ? "Movimentações" : (
+              {t === "movements" ? "Movimentações" : t === "pricing" ? (
+                <span className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5" /> Precificação</span>
+              ) : (
                 <span className="flex items-center gap-1.5">
                   Alertas
                   {lowStock.length > 0 && <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold">{lowStock.length}</span>}
@@ -98,6 +109,10 @@ export function InventoryClient({ entries, products }: { entries: Entry[]; produ
           </div>
         )}
 
+        {tab === "pricing" && (
+          <PricingTab products={pricingProducts} search={pricingSearch} setSearch={setPricingSearch} marginFilter={marginFilter} setMarginFilter={setMarginFilter} />
+        )}
+
         {tab === "alerts" && (
           <div className="space-y-2">
             {lowStock.length === 0
@@ -133,6 +148,101 @@ export function InventoryClient({ entries, products }: { entries: Entry[]; produ
         onCreated={() => { setShowNew(false); startTransition(() => router.refresh()) }}
       />
     </>
+  )
+}
+
+function PricingTab({ products, search, setSearch, marginFilter, setMarginFilter }: {
+  products: PricingProduct[]
+  search: string; setSearch: (v: string) => void
+  marginFilter: "all" | "low" | "ok" | "good"; setMarginFilter: (v: "all" | "low" | "ok" | "good") => void
+}) {
+  const filtered = products.filter((p) => {
+    const q = search.toLowerCase()
+    const matchSearch = !search || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
+    const totalCost = p.costPrice + p.freightCost + p.taxCost + p.commission + p.packaging + p.otherCosts
+    const margin = p.salePrice > 0 ? ((p.salePrice - totalCost) / p.salePrice) * 100 : 0
+    const matchMargin = marginFilter === "all" || (marginFilter === "low" && margin < 15) || (marginFilter === "ok" && margin >= 15 && margin < 30) || (marginFilter === "good" && margin >= 30)
+    return matchSearch && matchMargin
+  })
+
+  const totalStock = products.reduce((s, p) => s + p.currentStock * p.costPrice, 0)
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Input placeholder="Buscar produto..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-3" />
+        </div>
+        <div className="flex gap-1 p-1 rounded-lg bg-muted">
+          {(["all", "low", "ok", "good"] as const).map((f) => (
+            <button key={f} onClick={() => setMarginFilter(f)}
+              className={cn("px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                marginFilter === f ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}>
+              {f === "all" ? "Todos" : f === "low" ? "🔴 < 15%" : f === "ok" ? "🟡 15–30%" : "🟢 > 30%"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="text-xs text-muted-foreground">
+        Custo total em estoque: <span className="font-semibold text-foreground">{formatCurrency(totalStock)}</span>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 border-b bg-muted/40 rounded-t-xl">
+            {["Produto", "Estoque", "Custo total", "Preço venda", "Margem", "Sugestão 40%"].map((h) => (
+              <span key={h} className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</span>
+            ))}
+          </div>
+          <div className="divide-y divide-border">
+            {filtered.length === 0 && (
+              <div className="py-12 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</div>
+            )}
+            {filtered.map((p) => {
+              const totalCost = p.costPrice + p.freightCost + p.taxCost + p.commission + p.packaging + p.otherCosts
+              const margin = p.salePrice > 0 ? ((p.salePrice - totalCost) / p.salePrice) * 100 : 0
+              const suggested = totalCost > 0 ? totalCost / (1 - 0.4) : 0
+              const marginVariant = margin >= 30 ? "success" : margin >= 15 ? "warning" : "destructive"
+
+              return (
+                <div key={p.id} className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3 items-center hover:bg-muted/20 transition-colors">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{p.sku}{p.category ? ` · ${p.category}` : ""}</p>
+                  </div>
+                  <div>
+                    <Badge variant={p.currentStock === 0 ? "destructive" : p.currentStock <= 3 ? "warning" : "secondary"} className="text-xs">
+                      {p.currentStock} un
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{formatCurrency(totalCost)}</p>
+                    {p.freightCost > 0 && <p className="text-[11px] text-muted-foreground">+ frete {formatCurrency(p.freightCost)}</p>}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{formatCurrency(p.salePrice)}</p>
+                  </div>
+                  <div>
+                    {p.salePrice > 0
+                      ? <Badge variant={marginVariant} className="text-xs">{margin.toFixed(1)}%</Badge>
+                      : <span className="text-xs text-muted-foreground">—</span>
+                    }
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{suggested > 0 ? formatCurrency(suggested) : "—"}</p>
+                    {suggested > 0 && p.salePrice > 0 && p.salePrice < suggested && (
+                      <p className="text-[11px] text-amber-600">↑ abaixo do ideal</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
