@@ -61,7 +61,22 @@ export async function createProduct(data: unknown) {
     },
   })
 
+  // Registra estoque inicial se informado
+  if (values.currentStock > 0) {
+    await prisma.stockEntry.create({
+      data: {
+        productId: product.id,
+        type: "IN",
+        quantity: values.currentStock,
+        previousQty: 0,
+        newQty: values.currentStock,
+        reason: "Estoque inicial no cadastro do produto",
+      },
+    })
+  }
+
   revalidatePath("/products")
+  revalidatePath("/inventory")
   return { data: product }
 }
 
