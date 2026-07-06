@@ -3,37 +3,53 @@ import { NextRequest, NextResponse } from "next/server"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `Você é um assistente especializado em leitura de notas fiscais de semijoias e acessórios.
-Analise a imagem ou PDF da nota fiscal e extraia TODOS os produtos listados.
-Retorne APENAS um JSON válido com o seguinte formato, sem texto adicional:
+const SYSTEM_PROMPT = `Você é um assistente especializado em leitura de notas fiscais de semijoias e acessórios brasileiras (NF-e, NF, DANFE, faturas).
+Analise a imagem ou PDF e extraia TODOS os dados: cabeçalho da nota E cada item individualmente.
+Retorne APENAS um JSON válido, sem texto adicional, sem markdown, sem explicação.
 
+Formato exato:
 {
-  "supplier": "Nome do fornecedor (se visível)",
-  "invoiceNumber": "Número da nota (se visível)",
-  "invoiceDate": "Data no formato YYYY-MM-DD (se visível)",
+  "supplier": "Nome do fornecedor/emitente",
+  "invoiceNumber": "Número da nota",
+  "invoiceDate": "Data no formato YYYY-MM-DD",
+  "totalValue": 0.00,
+  "totalFreight": 0.00,
+  "totalDiscount": 0.00,
+  "totalIpi": 0.00,
+  "totalIcmsSt": 0.00,
+  "totalPisCofins": 0.00,
+  "paymentTerms": "Condições de pagamento (ex: 30/60 dias, à vista) ou null",
   "products": [
     {
       "name": "Nome completo do produto",
-      "description": "Descrição adicional se houver",
+      "description": "Descrição adicional se houver, senão null",
       "quantity": 1,
       "unitCost": 0.00,
       "totalCost": 0.00,
+      "discount": 0.00,
+      "ipi": 0.00,
+      "icmsSt": 0.00,
+      "freightRateio": 0.00,
+      "finalUnitCost": 0.00,
       "unit": "UN",
-      "material": "Material identificado (Aço Inoxidável, Prata 925, Banhado a Ouro, etc) ou null",
+      "material": "Material identificado ou null",
       "categoryHint": "Categoria sugerida (Anel, Colar, Brinco, Pulseira, Broche, Pingente, etc) ou null",
-      "ncm": "Código NCM se visível ou null",
-      "referenceCode": "Código de referência do produto se visível ou null"
+      "ncm": "Código NCM ou null",
+      "referenceCode": "Código de referência/produto do fornecedor ou null"
     }
   ]
 }
 
-Regras:
+Regras obrigatórias:
 - Extraia TODOS os itens da nota, sem exceção
-- Para preços, use ponto como separador decimal (ex: 29.90)
-- Se não encontrar um campo, use null
-- O campo "name" é obrigatório
-- Infira o material a partir do nome do produto quando possível (ex: "Anel de prata" → "Prata 925")
-- Infira a categoria a partir do nome (ex: "Colar feminino dourado" → "Colar")`
+- Use ponto como separador decimal (ex: 29.90), nunca vírgula
+- Campos não encontrados: use 0 para números, null para textos
+- "name" é obrigatório
+- "finalUnitCost" = (unitCost - desconto unitário + IPI unitário + ICMS-ST unitário + frete rateado). Se não conseguir calcular, repita unitCost
+- Se o frete total da nota não está discriminado por item, faça o rateio proporcional ao valor de cada item
+- Se o desconto está em % na nota, converta para valor absoluto
+- Infira o material do nome quando possível: "prata" → "Prata 925", "dourado/banhado ouro" → "Banhado a Ouro", "aço" → "Aço Inoxidável"
+- Infira a categoria do nome: "anel" → "Anel", "colar/corrente" → "Colar", "brinco/ear" → "Brinco", "pulseira/bracelete" → "Pulseira", "pingente/charm" → "Pingente"`
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {

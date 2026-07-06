@@ -140,6 +140,11 @@ export async function createProductsBulk(items: {
   categoryId?: string | null
   material?: string | null
   referenceCode?: string | null
+  freightCost?: number
+  taxCost?: number
+  commission?: number
+  packaging?: number
+  otherCosts?: number
 }[]) {
   const created = []
   const errors = []
@@ -159,6 +164,11 @@ export async function createProductsBulk(items: {
           description: item.description ?? null,
           sku,
           costPrice: item.unitCost ?? 0,
+          freightCost: item.freightCost ?? 0,
+          taxCost: item.taxCost ?? 0,
+          commission: item.commission ?? 0,
+          packaging: item.packaging ?? 0,
+          otherCosts: item.otherCosts ?? 0,
           salePrice: item.salePrice ?? (item.unitCost ? item.unitCost * 2.5 : 0),
           currentStock: item.currentStock ?? 0,
           minStock: 3,

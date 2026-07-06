@@ -11,7 +11,7 @@ import { createProductsBulk } from "@/lib/actions/products"
 import { formatCurrency } from "@/lib/utils"
 import {
   FileUp, Loader2, Sparkles, CheckCircle2, AlertCircle,
-  Pencil, X, ChevronUp, Package, FileText, Image as ImageIcon,
+  Pencil, X, ChevronUp, Package, FileText, Image as ImageIcon, Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -24,11 +24,23 @@ type ExtractedProduct = {
   quantity: number
   unitCost: number
   totalCost: number
+  discount: number
+  ipi: number
+  icmsSt: number
+  freightRateio: number
+  finalUnitCost: number
   unit: string
   material?: string | null
   categoryHint?: string | null
   ncm?: string | null
   referenceCode?: string | null
+  // mapped to product schema
+  freightCost: number
+  taxCost: number
+  commission: number
+  packaging: number
+  otherCosts: number
+  salePrice: number
   categoryId?: string
   _id: string
   _editing: boolean
@@ -45,6 +57,12 @@ type InvoiceFile = {
   supplier?: string
   invoiceNumber?: string
   invoiceDate?: string
+  totalValue?: number
+  totalFreight?: number
+  totalDiscount?: number
+  totalIpi?: number
+  totalIcmsSt?: number
+  paymentTerms?: string | null
 }
 
 const MATERIALS = [
@@ -84,11 +102,7 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
 
   function removeInvoice(id: string) {
     setInvoices((prev) => prev.filter((i) => i.id !== id))
-    setProducts((prev) => prev.filter((p) => {
-      const inv = invoices.find((i) => i.id === id)
-      if (!inv) return true
-      return p._invoiceIdx !== invoices.indexOf(inv)
-    }))
+    setProducts((prev) => prev.filter((p) => !p._id.startsWith(id + "-")))
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -113,26 +127,54 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? "Erro na análise")
 
-        const invIdx = invoices.findIndex((i) => i.id === inv.id)
-
         setInvoices((prev) => prev.map((i) => i.id === inv.id ? {
           ...i,
           status: "done",
           supplier: data.supplier,
           invoiceNumber: data.invoiceNumber,
           invoiceDate: data.invoiceDate,
+          totalValue: data.totalValue ?? 0,
+          totalFreight: data.totalFreight ?? 0,
+          totalDiscount: data.totalDiscount ?? 0,
+          totalIpi: data.totalIpi ?? 0,
+          totalIcmsSt: data.totalIcmsSt ?? 0,
+          paymentTerms: data.paymentTerms ?? null,
         } : i))
 
         setProducts((prev) => [
           ...prev,
-          ...(data.products ?? []).map((p: ExtractedProduct, pi: number) => ({
-            ...p,
-            _id: `${inv.id}-${pi}`,
-            _editing: false,
-            _selected: true,
-            _invoiceIdx: invIdx,
-            categoryId: matchCategory(p.categoryHint, rootCategories) ?? "",
-          })),
+          ...(data.products ?? []).map((p: any, pi: number) => {
+            const finalUnitCost = p.finalUnitCost > 0 ? p.finalUnitCost : p.unitCost
+            return {
+              name: p.name,
+              description: p.description ?? null,
+              quantity: p.quantity ?? 1,
+              unitCost: p.unitCost ?? 0,
+              totalCost: p.totalCost ?? 0,
+              discount: p.discount ?? 0,
+              ipi: p.ipi ?? 0,
+              icmsSt: p.icmsSt ?? 0,
+              freightRateio: p.freightRateio ?? 0,
+              finalUnitCost,
+              unit: p.unit ?? "UN",
+              material: p.material ?? null,
+              categoryHint: p.categoryHint ?? null,
+              ncm: p.ncm ?? null,
+              referenceCode: p.referenceCode ?? null,
+              // mapped fields — custo base já inclui frete/imposto no finalUnitCost
+              freightCost: p.freightRateio ?? 0,
+              taxCost: (p.ipi ?? 0) + (p.icmsSt ?? 0),
+              commission: 0,
+              packaging: 0,
+              otherCosts: 0,
+              salePrice: 0,
+              categoryId: matchCategory(p.categoryHint, rootCategories) ?? "",
+              _id: `${inv.id}-${pi}`,
+              _editing: false,
+              _selected: true,
+              _invoiceIdx: pi,
+            } as ExtractedProduct
+          }),
         ])
       } catch (err) {
         setInvoices((prev) => prev.map((i) => i.id === inv.id ? {
@@ -161,11 +203,17 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
     const res = await createProductsBulk(selected.map((p) => ({
       name: p.name,
       description: p.description,
-      unitCost: p.unitCost,
+      unitCost: p.finalUnitCost || p.unitCost,
+      salePrice: p.salePrice || undefined,
       currentStock: p.quantity,
       categoryId: p.categoryId || null,
       material: p.material,
       referenceCode: p.referenceCode,
+      freightCost: p.freightCost,
+      taxCost: p.taxCost,
+      commission: p.commission,
+      packaging: p.packaging,
+      otherCosts: p.otherCosts,
     })))
     setSaving(false)
     setDone({ created: res.created, errors: res.errors.length })
@@ -204,7 +252,6 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
           <span className="text-xs text-muted-foreground">— pode selecionar várias de uma vez</span>
         </div>
 
-        {/* Drop zone */}
         <div
           className={cn(
             "border-2 border-dashed rounded-xl transition-colors cursor-pointer p-8",
@@ -234,54 +281,77 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
           />
         </div>
 
-        {/* File list */}
         {invoices.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {invoices.map((inv) => (
-              <div
-                key={inv.id}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border bg-card",
-                  inv.status === "error" && "border-destructive/40 bg-destructive/5",
-                  inv.status === "done" && "border-emerald-200 bg-emerald-50/50",
-                )}
-              >
-                {/* Thumbnail */}
-                <div className="w-10 h-10 rounded-md border border-border bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                  {inv.preview
-                    ? <Image src={inv.preview} alt="" width={40} height={40} className="object-cover w-full h-full" unoptimized />
-                    : <FileText className="w-5 h-5 text-muted-foreground" />
-                  }
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{inv.file.name}</p>
-                  <div className="mt-0.5">
-                    {inv.status === "pending" && <span className="text-[10px] text-muted-foreground">Aguardando análise</span>}
-                    {inv.status === "analyzing" && (
-                      <span className="text-[10px] text-primary flex items-center gap-1">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Analisando...
-                      </span>
-                    )}
-                    {inv.status === "done" && (
-                      <span className="text-[10px] text-emerald-600 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {inv.supplier ?? "Concluída"}
-                        {inv.invoiceNumber ? ` · Nº ${inv.invoiceNumber}` : ""}
-                      </span>
-                    )}
-                    {inv.status === "error" && (
-                      <span className="text-[10px] text-destructive flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> {inv.error ?? "Erro"}
-                      </span>
-                    )}
+              <div key={inv.id} className={cn(
+                "flex flex-col gap-2 p-3 rounded-lg border bg-card",
+                inv.status === "error" && "border-destructive/40 bg-destructive/5",
+                inv.status === "done" && "border-emerald-200 bg-emerald-50/50",
+              )}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-md border border-border bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                    {inv.preview
+                      ? <Image src={inv.preview} alt="" width={40} height={40} className="object-cover w-full h-full" unoptimized />
+                      : <FileText className="w-5 h-5 text-muted-foreground" />
+                    }
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{inv.file.name}</p>
+                    <div className="mt-0.5">
+                      {inv.status === "pending" && <span className="text-[10px] text-muted-foreground">Aguardando análise</span>}
+                      {inv.status === "analyzing" && (
+                        <span className="text-[10px] text-primary flex items-center gap-1">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Analisando...
+                        </span>
+                      )}
+                      {inv.status === "done" && (
+                        <span className="text-[10px] text-emerald-600 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {inv.supplier ?? "Concluída"}
+                          {inv.invoiceNumber ? ` · Nº ${inv.invoiceNumber}` : ""}
+                        </span>
+                      )}
+                      {inv.status === "error" && (
+                        <span className="text-[10px] text-destructive flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {inv.error ?? "Erro"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {inv.status === "pending" && (
+                    <button onClick={() => removeInvoice(inv.id)} className="shrink-0 text-muted-foreground hover:text-destructive transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
-                {inv.status === "pending" && (
-                  <button onClick={() => removeInvoice(inv.id)} className="shrink-0 text-muted-foreground hover:text-destructive transition-colors">
-                    <X className="w-4 h-4" />
-                  </button>
+                {/* Invoice totals summary */}
+                {inv.status === "done" && (inv.totalValue ?? 0) > 0 && (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 pt-2 border-t border-border/60 text-[10px]">
+                    <span className="text-muted-foreground">Valor total</span>
+                    <span className="text-right font-semibold">{formatCurrency(inv.totalValue ?? 0)}</span>
+                    {(inv.totalFreight ?? 0) > 0 && <>
+                      <span className="text-muted-foreground">Frete</span>
+                      <span className="text-right">{formatCurrency(inv.totalFreight ?? 0)}</span>
+                    </>}
+                    {(inv.totalDiscount ?? 0) > 0 && <>
+                      <span className="text-muted-foreground">Desconto</span>
+                      <span className="text-right text-emerald-600">−{formatCurrency(inv.totalDiscount ?? 0)}</span>
+                    </>}
+                    {(inv.totalIpi ?? 0) > 0 && <>
+                      <span className="text-muted-foreground">IPI</span>
+                      <span className="text-right">{formatCurrency(inv.totalIpi ?? 0)}</span>
+                    </>}
+                    {(inv.totalIcmsSt ?? 0) > 0 && <>
+                      <span className="text-muted-foreground">ICMS-ST</span>
+                      <span className="text-right">{formatCurrency(inv.totalIcmsSt ?? 0)}</span>
+                    </>}
+                    {inv.paymentTerms && <>
+                      <span className="text-muted-foreground">Pgto</span>
+                      <span className="text-right truncate">{inv.paymentTerms}</span>
+                    </>}
+                  </div>
                 )}
               </div>
             ))}
@@ -303,10 +373,14 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">2</div>
-            <h2 className="text-sm font-semibold">Revise os produtos extraídos</h2>
+            <h2 className="text-sm font-semibold">Revise e complete os dados de cada produto</h2>
           </div>
 
-          {/* Bulk select */}
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700">
+            <Info className="w-3.5 h-3.5 shrink-0" />
+            A IA preencheu os custos automaticamente. Clique no lápis para corrigir ou complementar qualquer campo.
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <input
@@ -320,8 +394,7 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
             <Badge variant="secondary">{products.length} produto{products.length !== 1 ? "s" : ""} encontrado{products.length !== 1 ? "s" : ""}</Badge>
           </div>
 
-          {/* Products grouped by invoice */}
-          {invoices.filter(i => i.status === "done").map((inv, invIdx) => {
+          {invoices.filter(i => i.status === "done").map((inv) => {
             const invProducts = products.filter((p) => p._id.startsWith(inv.id + "-"))
             if (!invProducts.length) return null
             return (
@@ -351,7 +424,6 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
             )
           })}
 
-          {/* Save */}
           <div className="flex items-center justify-between pt-3 border-t border-border sticky bottom-0 bg-background pb-2">
             <p className="text-sm text-muted-foreground">
               {selectedCount} produto{selectedCount !== 1 ? "s" : ""} será{selectedCount !== 1 ? "ão" : ""} cadastrado{selectedCount !== 1 ? "s" : ""}
@@ -369,32 +441,57 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
   )
 }
 
+function CurrencyInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <Input value={value === 0 ? "" : value} type="number" step="0.01" min="0" placeholder="0,00"
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className="h-8 text-sm" />
+    </div>
+  )
+}
+
 function ProductRow({ product, categories, onChange }: {
   product: ExtractedProduct
   categories: Category[]
   onChange: (patch: Partial<ExtractedProduct>) => void
 }) {
+  const totalCostManual = product.finalUnitCost + product.freightCost + product.taxCost + product.commission + product.packaging + product.otherCosts
+  const margin = product.salePrice > 0 ? ((product.salePrice - totalCostManual) / product.salePrice * 100) : null
+
   return (
     <Card className={cn("transition-opacity", !product._selected && "opacity-50")}>
       <CardContent className="p-0">
-        <div className="flex items-center gap-3 p-3">
+        {/* Summary row */}
+        <div className="flex items-start gap-3 p-3">
           <input
             type="checkbox"
             checked={product._selected}
             onChange={(e) => onChange({ _selected: e.target.checked })}
-            className="w-4 h-4 accent-primary shrink-0"
+            className="w-4 h-4 accent-primary shrink-0 mt-0.5"
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium truncate">{product.name}</span>
+              <span className="text-sm font-medium">{product.name}</span>
               {product.categoryHint && <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{product.categoryHint}</Badge>}
               {product.material && <Badge variant="gold" className="text-[10px] py-0 px-1.5">{product.material}</Badge>}
             </div>
-            <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
+            {/* Cost summary chips */}
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
               <span>Qtd: <strong className="text-foreground">{product.quantity}</strong></span>
-              <span>Custo unit.: <strong className="text-foreground">{formatCurrency(product.unitCost)}</strong></span>
-              <span>Total: <strong className="text-foreground">{formatCurrency(product.totalCost)}</strong></span>
-              {product.referenceCode && <span>Ref: {product.referenceCode}</span>}
+              <span>Custo NF: <strong className="text-foreground">{formatCurrency(product.unitCost)}</strong></span>
+              {product.discount > 0 && <span className="text-emerald-600">Desc: −{formatCurrency(product.discount)}</span>}
+              {product.ipi > 0 && <span>IPI: {formatCurrency(product.ipi)}</span>}
+              {product.icmsSt > 0 && <span>ICMS-ST: {formatCurrency(product.icmsSt)}</span>}
+              {product.freightRateio > 0 && <span>Frete: {formatCurrency(product.freightRateio)}</span>}
+              <span className="font-semibold text-foreground">
+                Custo final: {formatCurrency(product.finalUnitCost)}
+              </span>
+              {product.salePrice > 0 && (
+                <span className={cn("font-semibold", margin !== null && margin < 15 ? "text-destructive" : margin !== null && margin < 30 ? "text-amber-600" : "text-emerald-600")}>
+                  Margem: {margin?.toFixed(1)}%
+                </span>
+              )}
             </div>
           </div>
           <Button size="icon" variant="ghost" className="w-8 h-8 shrink-0" onClick={() => onChange({ _editing: !product._editing })}>
@@ -402,40 +499,97 @@ function ProductRow({ product, categories, onChange }: {
           </Button>
         </div>
 
+        {/* Edit panel */}
         {product._editing && (
-          <div className="px-3 pb-3 border-t border-border">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-xs font-medium text-muted-foreground">Nome do produto</label>
-                <Input value={product.name} onChange={(e) => onChange({ name: e.target.value })} className="h-8 text-sm" />
+          <div className="px-3 pb-4 border-t border-border space-y-4 pt-3">
+            {/* Basic info */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Informações básicas</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground">Nome do produto</label>
+                  <Input value={product.name} onChange={(e) => onChange({ name: e.target.value })} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Quantidade</label>
+                  <Input value={product.quantity} type="number" min={1} onChange={(e) => onChange({ quantity: parseInt(e.target.value) || 1 })} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Referência fornecedor</label>
+                  <Input value={product.referenceCode ?? ""} onChange={(e) => onChange({ referenceCode: e.target.value || null })} className="h-8 text-sm" placeholder="ex: REF-001" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Categoria</label>
+                  <Select value={product.categoryId ?? ""} onValueChange={(v) => onChange({ categoryId: v })}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sem categoria</SelectItem>
+                      {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Material</label>
+                  <Select value={product.material ?? ""} onValueChange={(v) => onChange({ material: v || null })}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Não identificado</SelectItem>
+                      {MATERIALS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Custo unitário (R$)</label>
-                <Input value={product.unitCost} type="number" step="0.01" onChange={(e) => onChange({ unitCost: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
+            </div>
+
+            {/* Costs from invoice */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Custos da nota fiscal</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <CurrencyInput label="Custo unitário NF (R$)" value={product.unitCost} onChange={(v) => onChange({ unitCost: v, finalUnitCost: v - product.discount + product.ipi + product.icmsSt + product.freightRateio })} />
+                <CurrencyInput label="Desconto unit. (R$)" value={product.discount} onChange={(v) => onChange({ discount: v, finalUnitCost: product.unitCost - v + product.ipi + product.icmsSt + product.freightRateio })} />
+                <CurrencyInput label="IPI unit. (R$)" value={product.ipi} onChange={(v) => onChange({ ipi: v, taxCost: v + product.icmsSt, finalUnitCost: product.unitCost - product.discount + v + product.icmsSt + product.freightRateio })} />
+                <CurrencyInput label="ICMS-ST unit. (R$)" value={product.icmsSt} onChange={(v) => onChange({ icmsSt: v, taxCost: product.ipi + v, finalUnitCost: product.unitCost - product.discount + product.ipi + v + product.freightRateio })} />
+                <CurrencyInput label="Frete rateado (R$)" value={product.freightRateio} onChange={(v) => onChange({ freightRateio: v, freightCost: v, finalUnitCost: product.unitCost - product.discount + product.ipi + product.icmsSt + v })} />
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Custo final calculado</label>
+                  <div className="h-8 px-3 flex items-center rounded-md border bg-muted text-sm font-semibold text-primary">
+                    {formatCurrency(product.finalUnitCost)}
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Quantidade</label>
-                <Input value={product.quantity} type="number" onChange={(e) => onChange({ quantity: parseInt(e.target.value) || 1 })} className="h-8 text-sm" />
+            </div>
+
+            {/* Extra product costs */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Outros custos do produto</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <CurrencyInput label="Embalagem (R$)" value={product.packaging} onChange={(v) => onChange({ packaging: v })} />
+                <CurrencyInput label="Comissão (R$)" value={product.commission} onChange={(v) => onChange({ commission: v })} />
+                <CurrencyInput label="Outros (R$)" value={product.otherCosts} onChange={(v) => onChange({ otherCosts: v })} />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Categoria</label>
-                <Select value={product.categoryId ?? ""} onValueChange={(v) => onChange({ categoryId: v })}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Sem categoria</SelectItem>
-                    {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Material</label>
-                <Select value={product.material ?? ""} onValueChange={(v) => onChange({ material: v || null })}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Não identificado</SelectItem>
-                    {MATERIALS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            </div>
+
+            {/* Sale price */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Precificação</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
+                <CurrencyInput label="Preço de venda (R$)" value={product.salePrice} onChange={(v) => onChange({ salePrice: v })} />
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Custo total</label>
+                  <div className="h-8 px-3 flex items-center rounded-md border bg-muted text-sm font-semibold">
+                    {formatCurrency(totalCostManual)}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Margem</label>
+                  <div className={cn("h-8 px-3 flex items-center rounded-md border text-sm font-semibold",
+                    margin === null ? "bg-muted text-muted-foreground"
+                    : margin < 15 ? "bg-destructive/10 text-destructive"
+                    : margin < 30 ? "bg-amber-50 text-amber-700"
+                    : "bg-emerald-50 text-emerald-700")}>
+                    {margin !== null ? `${margin.toFixed(1)}%` : "—"}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
