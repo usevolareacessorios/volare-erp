@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
-import { Search, Package, ChevronRight } from "lucide-react"
+import { Search, Package, ChevronRight, Trash2 } from "lucide-react"
+import { deleteProduct } from "@/lib/actions/products"
 
 type Product = {
   id: string; name: string; sku: string; status: string
@@ -20,6 +22,18 @@ type Product = {
 
 export function ProductsList({ products }: { products: Product[] }) {
   const [search, setSearch] = useState("")
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+  const router = useRouter()
+
+  async function handleDelete(e: React.MouseEvent, id: string) {
+    e.preventDefault()
+    if (!confirm("Tem certeza que deseja excluir este produto?")) return
+    setDeletingId(id)
+    await deleteProduct(id)
+    setDeletingId(null)
+    startTransition(() => router.refresh())
+  }
 
   const filtered = products.filter((p) => {
     if (!search) return true
@@ -121,11 +135,19 @@ export function ProductsList({ products }: { products: Product[] }) {
                       </Badge>
                     </div>
 
-                    {/* Status + arrow */}
+                    {/* Status + actions */}
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge variant={product.status === "ACTIVE" ? "success" : "secondary"} className="hidden sm:inline-flex text-xs">
                         {product.status === "ACTIVE" ? "Ativo" : product.isFeatured ? "Destaque" : "Inativo"}
                       </Badge>
+                      <button
+                        onClick={(e) => handleDelete(e, product.id)}
+                        disabled={deletingId === product.id}
+                        className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                        title="Excluir produto"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                       <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
                     </div>
                   </Link>
