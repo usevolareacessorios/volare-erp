@@ -152,7 +152,6 @@ export function ProductsPricing({ products }: Props) {
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Embalagem</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Frete</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-orange-50">Custo total</th>
-                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preço atual</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Margem</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-emerald-700 uppercase tracking-wider bg-emerald-50">
                       Sugestão {targetMargin}%
@@ -162,14 +161,13 @@ export function ProductsPricing({ products }: Props) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filtered.length === 0 && (
-                    <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</td></tr>
+                    <tr><td colSpan={8} className="py-12 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</td></tr>
                   )}
                   {filtered.map((p) => {
                     const productMargin = getMargin(p.id)
                     const directCost = p.costPrice + p.freightCost + p.packaging
                     const margin = p.salePrice > 0 ? ((p.salePrice - directCost) / p.salePrice) * 100 : null
                     const suggested = directCost > 0 ? directCost / (1 - productMargin / 100) : 0
-                    const below = suggested > 0 && p.salePrice > 0 && p.salePrice < suggested
                     const isExpanded = expandedRow === p.id
 
                     return (
@@ -185,9 +183,6 @@ export function ProductsPricing({ products }: Props) {
                           <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">{p.packaging > 0 ? formatCurrency(p.packaging) : "—"}</td>
                           <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">{p.freightCost > 0 ? formatCurrency(p.freightCost) : "—"}</td>
                           <td className="px-3 py-2.5 text-right text-sm bg-orange-50 font-bold">{formatCurrency(directCost)}</td>
-                          <td className="px-3 py-2.5 text-right text-sm font-semibold">
-                            {p.salePrice > 0 ? formatCurrency(p.salePrice) : "—"}
-                          </td>
                           <td className="px-3 py-2.5 text-right">
                             {margin !== null
                               ? <Badge variant={margin >= 30 ? "success" : margin >= 15 ? "warning" : "destructive"} className="text-xs">{margin.toFixed(1)}%</Badge>
@@ -204,13 +199,9 @@ export function ProductsPricing({ products }: Props) {
                                 />
                                 <span className="text-xs text-muted-foreground">%</span>
                               </div>
-                              <p className={cn("text-sm font-bold", below ? "text-amber-600" : "text-emerald-700")}>
+                              <p className="text-sm font-bold text-emerald-700">
                                 {suggested > 0 ? formatCurrency(suggested) : "—"}
                               </p>
-                              {below && <p className="text-[10px] text-amber-600">↑ abaixo do ideal</p>}
-                              {!below && p.salePrice > 0 && margin !== null && margin >= productMargin && (
-                                <p className="text-[10px] text-emerald-600">✓ dentro da meta</p>
-                              )}
                             </div>
                           </td>
                           <td className="px-2 py-2.5">
@@ -225,7 +216,7 @@ export function ProductsPricing({ products }: Props) {
                         {/* Linha de detalhamento do cálculo */}
                         {isExpanded && (
                           <tr key={p.id + "_detail"} className="bg-muted/10">
-                            <td colSpan={9} className="px-6 py-4">
+                            <td colSpan={8} className="px-6 py-4">
                               <div className="max-w-sm">
                                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                                   Como foi calculado o preço sugerido de {suggested > 0 ? formatCurrency(suggested) : "—"}
@@ -255,12 +246,6 @@ export function ProductsPricing({ products }: Props) {
                                     <span>= Preço sugerido</span>
                                     <span>{suggested > 0 ? formatCurrency(suggested) : "—"}</span>
                                   </div>
-                                  {p.salePrice > 0 && margin !== null && (
-                                    <div className={cn("flex justify-between text-sm pt-1", below ? "text-amber-600" : "text-emerald-600")}>
-                                      <span>Seu preço atual ({formatCurrency(p.salePrice)})</span>
-                                      <span>{below ? `R$ ${(suggested - p.salePrice).toFixed(2)} abaixo` : `R$ ${(p.salePrice - suggested).toFixed(2)} acima ✓`}</span>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </td>
