@@ -35,7 +35,11 @@ export function ProductsPricing({ products }: Props) {
   const [deletingBulk, setDeletingBulk] = useState(false)
   const [marginFilter, setMarginFilter] = useState<"all" | "low" | "ok" | "good">("all")
   const [targetMargin, setTargetMargin] = useState(40)
+  const [productMargins, setProductMargins] = useState<Record<string, number>>({})
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+
+  function getMargin(id: string) { return productMargins[id] ?? targetMargin }
+  function setMargin(id: string, value: number) { setProductMargins((prev) => ({ ...prev, [id]: value })) }
 
   const [, startTransition] = useTransition()
   const router = useRouter()
@@ -161,9 +165,10 @@ export function ProductsPricing({ products }: Props) {
                     <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</td></tr>
                   )}
                   {filtered.map((p) => {
+                    const productMargin = getMargin(p.id)
                     const directCost = p.costPrice + p.freightCost + p.packaging
                     const margin = p.salePrice > 0 ? ((p.salePrice - directCost) / p.salePrice) * 100 : null
-                    const suggested = directCost > 0 ? directCost / (1 - targetMargin / 100) : 0
+                    const suggested = directCost > 0 ? directCost / (1 - productMargin / 100) : 0
                     const below = suggested > 0 && p.salePrice > 0 && p.salePrice < suggested
                     const isExpanded = expandedRow === p.id
 
@@ -188,14 +193,25 @@ export function ProductsPricing({ products }: Props) {
                               ? <Badge variant={margin >= 30 ? "success" : margin >= 15 ? "warning" : "destructive"} className="text-xs">{margin.toFixed(1)}%</Badge>
                               : <span className="text-xs text-muted-foreground">—</span>}
                           </td>
-                          <td className="px-3 py-2.5 text-right bg-emerald-50">
-                            <p className={cn("text-sm font-bold", below ? "text-amber-600" : "text-emerald-700")}>
-                              {suggested > 0 ? formatCurrency(suggested) : "—"}
-                            </p>
-                            {below && <p className="text-[10px] text-amber-600">↑ preço abaixo do ideal</p>}
-                            {!below && p.salePrice > 0 && margin !== null && margin >= targetMargin && (
-                              <p className="text-[10px] text-emerald-600">✓ dentro da meta</p>
-                            )}
+                          <td className="px-3 py-2.5 bg-emerald-50">
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number" min={1} max={99} value={productMargin}
+                                  onChange={(e) => setMargin(p.id, Number(e.target.value))}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-12 h-6 text-xs text-center border border-emerald-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                />
+                                <span className="text-xs text-muted-foreground">%</span>
+                              </div>
+                              <p className={cn("text-sm font-bold", below ? "text-amber-600" : "text-emerald-700")}>
+                                {suggested > 0 ? formatCurrency(suggested) : "—"}
+                              </p>
+                              {below && <p className="text-[10px] text-amber-600">↑ abaixo do ideal</p>}
+                              {!below && p.salePrice > 0 && margin !== null && margin >= productMargin && (
+                                <p className="text-[10px] text-emerald-600">✓ dentro da meta</p>
+                              )}
+                            </div>
                           </td>
                           <td className="px-2 py-2.5">
                             <button onClick={() => setExpandedRow(isExpanded ? null : p.id)}
@@ -233,7 +249,7 @@ export function ProductsPricing({ products }: Props) {
                                   </div>
                                   <div className="flex justify-between text-muted-foreground text-xs pt-2">
                                     <span>Fórmula do preço sugerido</span>
-                                    <span className="font-mono">{formatCurrency(directCost)} ÷ (1 − {targetMargin}%)</span>
+                                    <span className="font-mono">{formatCurrency(directCost)} ÷ (1 − {productMargin}%)</span>
                                   </div>
                                   <div className="flex justify-between font-bold text-base text-emerald-700 pt-1 border-t border-emerald-200">
                                     <span>= Preço sugerido</span>
