@@ -21,22 +21,19 @@ type Category = { id: string; name: string; parentId: string | null }
 type ExtractedProduct = {
   name: string
   description?: string | null
-  quantity: number
-  unitCost: number
-  totalCost: number
-  discount: number
-  ipi: number
-  icmsSt: number
-  freightRateio: number
-  finalUnitCost: number
+  quantity: number        // total de peças no estoque
+  piecesPerPackage: number
+  totalPieces: number
+  unitCost: number        // preço bruto por pacote (da nota)
+  itemBruto: number       // unitCost × qtd pacotes
+  finalItemCost: number   // custo final do item (após rateio)
+  finalUnitCost: number   // custo por peça = finalItemCost / totalPieces
   unit: string
   material?: string | null
   categoryHint?: string | null
   ncm?: string | null
   referenceCode?: string | null
-  // mapped to product schema
-  freightCost: number
-  taxCost: number
+  // campos adicionais de custo (preenchíveis manualmente)
   commission: number
   packaging: number
   otherCosts: number
@@ -145,31 +142,28 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
           ...prev,
           ...(data.products ?? []).map((p: any, pi: number) => {
             const unitCost = p.unitCost ?? 0
-            const discount = p.discount ?? 0
-            const ipi = p.ipi ?? 0
-            const icmsSt = p.icmsSt ?? 0
-            const freightRateio = p.freightRateio ?? 0
-            // Always recalculate from components — never trust AI's finalUnitCost blindly
-            const finalUnitCost = unitCost - discount + ipi + icmsSt + freightRateio || unitCost
+            const piecesPerPackage = Math.max(1, p.piecesPerPackage ?? 1)
+            const quantityPackages = p.quantity ?? 1
+            const totalPieces = p.totalPieces ?? (quantityPackages * piecesPerPackage)
+            const itemBruto = p.itemBruto ?? unitCost * quantityPackages
+            const finalItemCost = p.finalItemCost ?? itemBruto
+            const finalUnitCost = p.finalUnitCost > 0 ? p.finalUnitCost : finalItemCost / totalPieces
 
             return {
               name: p.name,
               description: p.description ?? null,
-              quantity: p.quantity ?? 1,
+              quantity: totalPieces,
+              piecesPerPackage,
+              totalPieces,
               unitCost,
-              totalCost: p.totalCost ?? 0,
-              discount,
-              ipi,
-              icmsSt,
-              freightRateio,
+              itemBruto,
+              finalItemCost,
               finalUnitCost,
               unit: p.unit ?? "UN",
               material: p.material ?? null,
               categoryHint: p.categoryHint ?? null,
               ncm: p.ncm ?? null,
               referenceCode: p.referenceCode ?? null,
-              freightCost: freightRateio,
-              taxCost: ipi + icmsSt,
               commission: 0,
               packaging: 0,
               otherCosts: 0,
@@ -209,14 +203,16 @@ export function InvoiceImporter({ categories }: InvoiceImporterProps) {
     const res = await createProductsBulk(selected.map((p) => ({
       name: p.name,
       description: p.description,
-      unitCost: p.finalUnitCost || p.unitCost,
+      unitCost: p.finalUnitCost,        // custo por peça (já calculado)
+      unitCostBruto: p.unitCost,        // preço bruto por pacote da nota
+      itemBruto: p.itemBruto,           // valor bruto total do item
+      finalItemCost: p.finalItemCost,   // custo final do item após rateio
+      piecesPerPackage: p.piecesPerPackage,
       salePrice: p.salePrice || undefined,
       currentStock: p.quantity,
       categoryId: p.categoryId || null,
       material: p.material,
       referenceCode: p.referenceCode,
-      freightCost: p.freightCost,
-      taxCost: p.taxCost,
       commission: p.commission,
       packaging: p.packaging,
       otherCosts: p.otherCosts,
@@ -462,8 +458,9 @@ function ProductRow({ product, categories, onChange }: {
   categories: Category[]
   onChange: (patch: Partial<ExtractedProduct>) => void
 }) {
-  const totalCostManual = product.finalUnitCost + product.freightCost + product.taxCost + product.commission + product.packaging + product.otherCosts
-  const margin = product.salePrice > 0 ? ((product.salePrice - totalCostManual) / product.salePrice * 100) : null
+  const totalCost = product.finalUnitCost + product.commission + product.packaging + product.otherCosts
+  const margin = product.salePrice > 0 ? ((product.salePrice - totalCost) / product.salePrice * 100) : null
+  const packagesQty = product.piecesPerPackage > 1 ? Math.round(product.totalPieces / product.piecesPerPackage) : null
 
   return (
     <Card className={cn("transition-opacity", !product._selected && "opacity-50")}>
@@ -482,20 +479,36 @@ function ProductRow({ product, categories, onChange }: {
               {product.categoryHint && <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{product.categoryHint}</Badge>}
               {product.material && <Badge variant="gold" className="text-[10px] py-0 px-1.5">{product.material}</Badge>}
             </div>
-            {/* Cost summary chips */}
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-              <span>Qtd: <strong className="text-foreground">{product.quantity}</strong></span>
-              <span>Custo NF: <strong className="text-foreground">{formatCurrency(product.unitCost)}</strong></span>
-              {product.discount > 0 && <span className="text-emerald-600">Desc: −{formatCurrency(product.discount)}</span>}
-              {product.ipi > 0 && <span>IPI: {formatCurrency(product.ipi)}</span>}
-              {product.icmsSt > 0 && <span>ICMS-ST: {formatCurrency(product.icmsSt)}</span>}
-              {product.freightRateio > 0 && <span>Frete: {formatCurrency(product.freightRateio)}</span>}
-              <span className="font-semibold text-foreground">
-                Custo final: {formatCurrency(product.finalUnitCost)}
-              </span>
-              {product.salePrice > 0 && (
-                <span className={cn("font-semibold", margin !== null && margin < 15 ? "text-destructive" : margin !== null && margin < 30 ? "text-amber-600" : "text-emerald-600")}>
-                  Margem: {margin?.toFixed(1)}%
+              {/* Quantidade */}
+              {packagesQty ? (
+                <span className="flex items-center gap-1">
+                  <span className="bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 text-[10px] font-semibold">
+                    {packagesQty} pac × {product.piecesPerPackage} pçs
+                  </span>
+                  <span>=</span>
+                  <input type="number" min={1} value={product.quantity}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => { e.stopPropagation(); const t = Math.max(1, parseInt(e.target.value) || 1); onChange({ quantity: t, totalPieces: t }) }}
+                    className="w-14 h-5 text-xs text-center border rounded px-1 font-semibold text-foreground bg-background" />
+                  <span className="text-[10px]">peças</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <span>Qtd:</span>
+                  <input type="number" min={1} value={product.quantity}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => { e.stopPropagation(); const t = Math.max(1, parseInt(e.target.value) || 1); onChange({ quantity: t, totalPieces: t }) }}
+                    className="w-14 h-5 text-xs text-center border rounded px-1 font-semibold text-foreground bg-background" />
+                </span>
+              )}
+              <span>Bruto/pac: <strong className="text-foreground">{formatCurrency(product.unitCost)}</strong></span>
+              <span>Total bruto: <strong className="text-foreground">{formatCurrency(product.itemBruto)}</strong></span>
+              <span className="text-emerald-700">→ Total final: <strong>{formatCurrency(product.finalItemCost)}</strong></span>
+              <span className="font-semibold text-foreground">Custo/peça: {formatCurrency(product.finalUnitCost)}</span>
+              {product.salePrice > 0 && margin !== null && (
+                <span className={cn("font-semibold", margin < 15 ? "text-destructive" : margin < 30 ? "text-amber-600" : "text-emerald-600")}>
+                  Margem: {margin.toFixed(1)}%
                 </span>
               )}
             </div>
@@ -508,17 +521,13 @@ function ProductRow({ product, categories, onChange }: {
         {/* Edit panel */}
         {product._editing && (
           <div className="px-3 pb-4 border-t border-border space-y-4 pt-3">
-            {/* Basic info */}
+            {/* Identificação */}
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Informações básicas</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Identificação</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1 sm:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground">Nome do produto</label>
                   <Input value={product.name} onChange={(e) => onChange({ name: e.target.value })} className="h-8 text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Quantidade</label>
-                  <Input value={product.quantity} type="number" min={1} onChange={(e) => onChange({ quantity: parseInt(e.target.value) || 1 })} className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Referência fornecedor</label>
@@ -547,27 +556,57 @@ function ProductRow({ product, categories, onChange }: {
               </div>
             </div>
 
-            {/* Costs from invoice */}
+            {/* Quantidades */}
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Custos da nota fiscal</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Quantidades</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <CurrencyInput label="Custo unitário NF (R$)" value={product.unitCost} onChange={(v) => onChange({ unitCost: v, finalUnitCost: v - product.discount + product.ipi + product.icmsSt + product.freightRateio })} />
-                <CurrencyInput label="Desconto unit. (R$)" value={product.discount} onChange={(v) => onChange({ discount: v, finalUnitCost: product.unitCost - v + product.ipi + product.icmsSt + product.freightRateio })} />
-                <CurrencyInput label="IPI unit. (R$)" value={product.ipi} onChange={(v) => onChange({ ipi: v, taxCost: v + product.icmsSt, finalUnitCost: product.unitCost - product.discount + v + product.icmsSt + product.freightRateio })} />
-                <CurrencyInput label="ICMS-ST unit. (R$)" value={product.icmsSt} onChange={(v) => onChange({ icmsSt: v, taxCost: product.ipi + v, finalUnitCost: product.unitCost - product.discount + product.ipi + v + product.freightRateio })} />
-                <CurrencyInput label="Frete rateado (R$)" value={product.freightRateio} onChange={(v) => onChange({ freightRateio: v, freightCost: v, finalUnitCost: product.unitCost - product.discount + product.ipi + product.icmsSt + v })} />
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Custo final calculado</label>
-                  <div className="h-8 px-3 flex items-center rounded-md border bg-muted text-sm font-semibold text-primary">
-                    {formatCurrency(product.finalUnitCost)}
-                  </div>
+                  <label className="text-xs font-medium text-muted-foreground">Peças por pacote</label>
+                  <Input value={product.piecesPerPackage} type="number" min={1} onChange={(e) => {
+                    const ppp = Math.max(1, parseInt(e.target.value) || 1)
+                    const pkgs = packagesQty ?? 1
+                    const newTotal = pkgs * ppp
+                    const newFinalUnit = product.finalItemCost / newTotal
+                    onChange({ piecesPerPackage: ppp, totalPieces: newTotal, quantity: newTotal, finalUnitCost: newFinalUnit })
+                  }} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Total de peças</label>
+                  <Input value={product.totalPieces} type="number" min={1} onChange={(e) => {
+                    const t = Math.max(1, parseInt(e.target.value) || 1)
+                    const newFinalUnit = product.finalItemCost / t
+                    onChange({ totalPieces: t, quantity: t, finalUnitCost: newFinalUnit })
+                  }} className="h-8 text-sm" />
                 </div>
               </div>
             </div>
 
-            {/* Extra product costs */}
+            {/* Custo calculado da nota */}
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Outros custos do produto</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Custo calculado da nota</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Valor bruto/pacote</label>
+                  <div className="h-8 px-3 flex items-center rounded-md border bg-muted text-sm">{formatCurrency(product.unitCost)}</div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Total bruto do item</label>
+                  <div className="h-8 px-3 flex items-center rounded-md border bg-muted text-sm">{formatCurrency(product.itemBruto)}</div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Total final (c/ rateio)</label>
+                  <div className="h-8 px-3 flex items-center rounded-md border bg-muted text-sm font-semibold text-emerald-700">{formatCurrency(product.finalItemCost)}</div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Custo por peça</label>
+                  <CurrencyInput label="" value={product.finalUnitCost} onChange={(v) => onChange({ finalUnitCost: v })} />
+                </div>
+              </div>
+            </div>
+
+            {/* Outros custos */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Outros custos por peça</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <CurrencyInput label="Embalagem (R$)" value={product.packaging} onChange={(v) => onChange({ packaging: v })} />
                 <CurrencyInput label="Comissão (R$)" value={product.commission} onChange={(v) => onChange({ commission: v })} />
@@ -575,16 +614,14 @@ function ProductRow({ product, categories, onChange }: {
               </div>
             </div>
 
-            {/* Sale price */}
+            {/* Precificação */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Precificação</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
                 <CurrencyInput label="Preço de venda (R$)" value={product.salePrice} onChange={(v) => onChange({ salePrice: v })} />
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Custo total</label>
-                  <div className="h-8 px-3 flex items-center rounded-md border bg-muted text-sm font-semibold">
-                    {formatCurrency(totalCostManual)}
-                  </div>
+                  <label className="text-xs font-medium text-muted-foreground">Custo total/peça</label>
+                  <div className="h-8 px-3 flex items-center rounded-md border bg-muted text-sm font-semibold">{formatCurrency(totalCost)}</div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Margem</label>

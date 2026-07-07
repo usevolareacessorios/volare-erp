@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
 import {
   Search, Package, ChevronRight, Trash2, TrendingUp, List,
-  AlertTriangle, ChevronDown, ChevronUp, ArrowRight,
+  ChevronDown, ChevronUp,
 } from "lucide-react"
 import { deleteProduct, deleteProducts } from "@/lib/actions/products"
 import { cn } from "@/lib/utils"
@@ -19,21 +19,15 @@ import { cn } from "@/lib/utils"
 type Product = {
   id: string; name: string; sku: string; status: string
   currentStock: number; salePrice: number; costPrice: number
-  freightCost: number; taxCost: number; commission: number
-  packaging: number; otherCosts: number
+  freightCost: number; packaging: number
   category: string | null; images: { url: string }[]
 }
 
-type Expense = { description: string; amount: number; category: string }
-
 type Props = {
   products: Product[]
-  totalExpenses: number
-  activeProducts: number
-  expenses: Expense[]
 }
 
-export function ProductsPricing({ products, totalExpenses, activeProducts, expenses }: Props) {
+export function ProductsPricing({ products }: Props) {
   const [tab, setTab] = useState<"list" | "pricing">("list")
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -42,17 +36,15 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
   const [marginFilter, setMarginFilter] = useState<"all" | "low" | "ok" | "good">("all")
   const [targetMargin, setTargetMargin] = useState(40)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
-  const [showExpenses, setShowExpenses] = useState(false)
+
   const [, startTransition] = useTransition()
   const router = useRouter()
-
-  const overheadPerProduct = activeProducts > 0 ? totalExpenses / activeProducts : 0
 
   const filtered = products.filter((p) => {
     const q = search.toLowerCase()
     const matchSearch = !search || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
     if (tab === "list") return matchSearch
-    const totalCost = p.costPrice + p.freightCost + p.taxCost + p.commission + p.packaging + p.otherCosts + overheadPerProduct
+    const totalCost = p.costPrice + p.freightCost + p.packaging
     const margin = p.salePrice > 0 ? ((p.salePrice - totalCost) / p.salePrice) * 100 : 0
     const matchMargin = marginFilter === "all"
       || (marginFilter === "low" && margin < 15)
@@ -125,26 +117,6 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
       {tab === "pricing" && (
         <div className="space-y-3">
 
-          {/* Alerta quando não tem despesas */}
-          {totalExpenses === 0 && (
-            <Card className="border-amber-200 bg-amber-50">
-              <CardContent className="p-3 flex items-start gap-3">
-                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-800">Gastos do negócio não preenchidos</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    Sem os gastos mensais (aluguel, energia, salários…) a sugestão de preço não considera o custo real do negócio.
-                  </p>
-                </div>
-                <Link href="/finance">
-                  <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0">
-                    Preencher gastos
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Controles */}
           <div className="flex flex-wrap gap-3 items-center">
             <div className="flex gap-1 p-1 rounded-lg bg-muted">
@@ -165,62 +137,6 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
             </div>
           </div>
 
-          {/* Banner de gastos do negócio */}
-          <Card className={cn("border", totalExpenses > 0 ? "border-primary/20 bg-primary/5" : "border-muted")}>
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <p className="text-sm font-semibold">
-                    Gastos do negócio este mês:{" "}
-                    <span className={totalExpenses > 0 ? "text-primary" : "text-muted-foreground"}>
-                      {totalExpenses > 0 ? formatCurrency(totalExpenses) : "não preenchido"}
-                    </span>
-                  </p>
-                  {totalExpenses > 0 && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatCurrency(totalExpenses)} ÷ {activeProducts} produtos ativos
-                      = <strong className="text-foreground">{formatCurrency(overheadPerProduct)}</strong> por produto
-                      → incluído na sugestão de preço
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  {totalExpenses > 0 && (
-                    <button onClick={() => setShowExpenses(!showExpenses)}
-                      className="text-xs text-primary underline underline-offset-2">
-                      {showExpenses ? "Ocultar detalhes" : `Ver ${expenses.length} despesas`}
-                    </button>
-                  )}
-                  <Link href="/finance" className="text-xs text-muted-foreground underline underline-offset-2">
-                    {totalExpenses > 0 ? "Editar gastos →" : "Preencher agora →"}
-                  </Link>
-                </div>
-              </div>
-
-              {showExpenses && expenses.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-primary/20 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {expenses.map((e, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground truncate">{e.description}</span>
-                      <span className="font-medium ml-2 shrink-0">{formatCurrency(e.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Fórmula da sugestão */}
-              {totalExpenses > 0 && (
-                <div className="mt-3 pt-3 border-t border-primary/20 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Fórmula da sugestão:</span>
-                  <span className="bg-muted px-2 py-0.5 rounded font-mono">(custo produto + frete + impostos + embalagem + gastos do negócio)</span>
-                  <ArrowRight className="w-3 h-3" />
-                  <span className="bg-muted px-2 py-0.5 rounded font-mono">÷ (1 − {targetMargin}%)</span>
-                  <span className="text-foreground font-semibold">= preço sugerido</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Tabela de precificação */}
           <Card>
             <CardContent className="p-0 overflow-x-auto">
@@ -228,14 +144,12 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
                 <thead>
                   <tr className="border-b bg-muted/40">
                     <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Produto</th>
-                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custo prod.</th>
-                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Outros custos</th>
-                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-primary/5">
-                      Gastos negócio
-                    </th>
+                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custo/peça</th>
+                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Embalagem</th>
+                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Frete</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-orange-50">Custo total</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preço atual</th>
-                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Margem real</th>
+                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Margem</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-emerald-700 uppercase tracking-wider bg-emerald-50">
                       Sugestão {targetMargin}%
                     </th>
@@ -247,10 +161,9 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
                     <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</td></tr>
                   )}
                   {filtered.map((p) => {
-                    const otherCosts = p.freightCost + p.taxCost + p.commission + p.packaging + p.otherCosts
-                    const totalCost = p.costPrice + otherCosts + overheadPerProduct
-                    const margin = p.salePrice > 0 ? ((p.salePrice - totalCost) / p.salePrice) * 100 : null
-                    const suggested = totalCost > 0 ? totalCost / (1 - targetMargin / 100) : 0
+                    const directCost = p.costPrice + p.freightCost + p.packaging
+                    const margin = p.salePrice > 0 ? ((p.salePrice - directCost) / p.salePrice) * 100 : null
+                    const suggested = directCost > 0 ? directCost / (1 - targetMargin / 100) : 0
                     const below = suggested > 0 && p.salePrice > 0 && p.salePrice < suggested
                     const isExpanded = expandedRow === p.id
 
@@ -264,13 +177,9 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
                             </Link>
                           </td>
                           <td className="px-3 py-2.5 text-right text-sm">{formatCurrency(p.costPrice)}</td>
-                          <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">
-                            {otherCosts > 0 ? formatCurrency(otherCosts) : "—"}
-                          </td>
-                          <td className="px-3 py-2.5 text-right text-sm bg-primary/5 font-medium text-primary">
-                            {overheadPerProduct > 0 ? formatCurrency(overheadPerProduct) : <span className="text-muted-foreground text-xs">não preench.</span>}
-                          </td>
-                          <td className="px-3 py-2.5 text-right text-sm bg-orange-50 font-bold">{formatCurrency(totalCost)}</td>
+                          <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">{p.packaging > 0 ? formatCurrency(p.packaging) : "—"}</td>
+                          <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">{p.freightCost > 0 ? formatCurrency(p.freightCost) : "—"}</td>
+                          <td className="px-3 py-2.5 text-right text-sm bg-orange-50 font-bold">{formatCurrency(directCost)}</td>
                           <td className="px-3 py-2.5 text-right text-sm font-semibold">
                             {p.salePrice > 0 ? formatCurrency(p.salePrice) : "—"}
                           </td>
@@ -307,54 +216,24 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
                                 </p>
                                 <div className="space-y-1.5 text-sm">
                                   <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Custo do produto (NF)</span>
+                                    <span className="text-muted-foreground">Custo/peça (nota)</span>
                                     <span className="font-medium">{formatCurrency(p.costPrice)}</span>
                                   </div>
-                                  {p.freightCost > 0 && (
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">+ Frete</span>
-                                      <span>{formatCurrency(p.freightCost)}</span>
-                                    </div>
-                                  )}
-                                  {p.taxCost > 0 && (
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">+ Impostos (IPI/ICMS)</span>
-                                      <span>{formatCurrency(p.taxCost)}</span>
-                                    </div>
-                                  )}
-                                  {p.commission > 0 && (
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">+ Comissão</span>
-                                      <span>{formatCurrency(p.commission)}</span>
-                                    </div>
-                                  )}
-                                  {p.packaging > 0 && (
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">+ Embalagem</span>
-                                      <span>{formatCurrency(p.packaging)}</span>
-                                    </div>
-                                  )}
-                                  {p.otherCosts > 0 && (
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">+ Outros custos</span>
-                                      <span>{formatCurrency(p.otherCosts)}</span>
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between text-primary font-medium">
-                                    <span>+ Gastos do negócio (rateio)</span>
-                                    <span>
-                                      {overheadPerProduct > 0
-                                        ? <>{formatCurrency(totalExpenses)} ÷ {activeProducts} = {formatCurrency(overheadPerProduct)}</>
-                                        : <Link href="/finance" className="underline text-amber-600">preencher gastos</Link>}
-                                    </span>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">+ Embalagem</span>
+                                    <span>{p.packaging > 0 ? formatCurrency(p.packaging) : "—"}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">+ Frete</span>
+                                    <span>{p.freightCost > 0 ? formatCurrency(p.freightCost) : "—"}</span>
                                   </div>
                                   <div className="flex justify-between font-bold pt-1.5 border-t border-border text-base">
                                     <span>= Custo total</span>
-                                    <span className="text-orange-700">{formatCurrency(totalCost)}</span>
+                                    <span className="text-orange-700">{formatCurrency(directCost)}</span>
                                   </div>
                                   <div className="flex justify-between text-muted-foreground text-xs pt-2">
                                     <span>Fórmula do preço sugerido</span>
-                                    <span className="font-mono">{formatCurrency(totalCost)} ÷ (1 − {targetMargin}%)</span>
+                                    <span className="font-mono">{formatCurrency(directCost)} ÷ (1 − {targetMargin}%)</span>
                                   </div>
                                   <div className="flex justify-between font-bold text-base text-emerald-700 pt-1 border-t border-emerald-200">
                                     <span>= Preço sugerido</span>
@@ -380,10 +259,10 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
                     <tr className="border-t-2 bg-muted/40">
                       <td className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">TOTAL ({filtered.length} produtos)</td>
                       <td className="px-3 py-2.5 text-right text-xs font-semibold">{formatCurrency(filtered.reduce((s, p) => s + p.costPrice, 0))}</td>
-                      <td className="px-3 py-2.5 text-right text-xs font-semibold">{formatCurrency(filtered.reduce((s, p) => s + p.freightCost + p.taxCost + p.commission + p.packaging + p.otherCosts, 0))}</td>
-                      <td className="px-3 py-2.5 text-right text-xs font-semibold bg-primary/5">{formatCurrency(overheadPerProduct * filtered.length)}</td>
+                      <td className="px-3 py-2.5 text-right text-xs font-semibold">{formatCurrency(filtered.reduce((s, p) => s + p.packaging, 0))}</td>
+                      <td className="px-3 py-2.5 text-right text-xs font-semibold">{formatCurrency(filtered.reduce((s, p) => s + p.freightCost, 0))}</td>
                       <td className="px-3 py-2.5 text-right text-xs font-bold bg-orange-50">
-                        {formatCurrency(filtered.reduce((s, p) => s + p.costPrice + p.freightCost + p.taxCost + p.commission + p.packaging + p.otherCosts + overheadPerProduct, 0))}
+                        {formatCurrency(filtered.reduce((s, p) => s + p.costPrice + p.freightCost + p.packaging, 0))}
                       </td>
                       <td colSpan={4} />
                     </tr>
@@ -399,14 +278,15 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
       {tab === "list" && (
         <Card>
           <CardContent className="p-0">
-            <div className="hidden md:grid grid-cols-[auto_auto_2fr_1fr_1fr_1fr_auto] gap-4 px-4 py-2.5 border-b border-border bg-muted/40 rounded-t-xl items-center">
+            <div className="hidden md:grid grid-cols-[auto_auto_2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 border-b border-border bg-muted/40 rounded-t-xl items-center">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-4 h-4 rounded accent-primary cursor-pointer" />
               <span className="w-10" />
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Produto</span>
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preço venda</span>
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Margem</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custo prod.</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custo total</span>
+              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Sugerido</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Venda atual</span>
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Estoque</span>
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</span>
             </div>
 
             <div className="divide-y divide-border">
@@ -415,10 +295,12 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
               )}
               {filtered.map((product) => {
                 const primaryImage = product.images[0]
-                const totalCost = product.costPrice + product.freightCost + product.taxCost + product.commission + product.packaging + product.otherCosts + overheadPerProduct
-                const margin = product.salePrice > 0 ? Math.round(((product.salePrice - totalCost) / product.salePrice) * 100) : null
+                const directCost = product.costPrice + product.freightCost + product.packaging
+                const margin = product.salePrice > 0 ? Math.round(((product.salePrice - directCost) / product.salePrice) * 100) : null
                 const lowStock = product.currentStock <= 3
                 const isSelected = selected.has(product.id)
+                const suggested = directCost > 0 ? directCost / (1 - targetMargin / 100) : 0
+                const belowSuggested = product.salePrice > 0 && suggested > 0 && product.salePrice < suggested
 
                 return (
                   <div key={product.id} className={`group flex items-center gap-3 px-4 py-3 transition-colors ${isSelected ? "bg-primary/5" : "hover:bg-muted/30"}`}>
@@ -435,21 +317,28 @@ export function ProductsPricing({ products, totalExpenses, activeProducts, expen
                         <p className="text-sm font-medium group-hover:text-primary transition-colors truncate">{product.name}</p>
                         <p className="text-xs text-muted-foreground font-mono">{product.sku}</p>
                       </div>
+                      {/* Custo produto */}
                       <div className="hidden md:block w-24 shrink-0">
-                        <p className="text-sm font-semibold">{formatCurrency(product.salePrice)}</p>
+                        <p className="text-sm">{formatCurrency(product.costPrice)}</p>
                       </div>
-                      <div className="hidden md:block w-20 shrink-0">
-                        {margin !== null
-                          ? <Badge variant={margin >= 30 ? "success" : margin >= 15 ? "warning" : "destructive"} className="text-xs">{margin}%</Badge>
-                          : <span className="text-xs text-muted-foreground">—</span>}
+                      {/* Custo total */}
+                      <div className="hidden md:block w-24 shrink-0">
+                        <p className="text-sm font-semibold">{formatCurrency(directCost)}</p>
                       </div>
-                      <div className="hidden md:block w-20 shrink-0">
-                        <Badge variant={lowStock ? "warning" : "secondary"} className="text-xs">{product.currentStock} un</Badge>
+                      {/* Preço sugerido */}
+                      <div className="hidden md:block w-24 shrink-0">
+                        <p className="text-sm font-semibold text-emerald-700">{suggested > 0 ? formatCurrency(suggested) : "—"}</p>
                       </div>
+                      {/* Preço de venda atual */}
+                      <div className="hidden md:block w-24 shrink-0">
+                        <p className={`text-sm font-semibold ${belowSuggested ? "text-destructive" : "text-foreground"}`}>
+                          {product.salePrice > 0 ? formatCurrency(product.salePrice) : "—"}
+                        </p>
+                        {belowSuggested && <p className="text-[10px] text-destructive leading-tight">abaixo do sugerido</p>}
+                      </div>
+                      {/* Estoque */}
                       <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant={product.status === "ACTIVE" ? "success" : "secondary"} className="hidden sm:inline-flex text-xs">
-                          {product.status === "ACTIVE" ? "Ativo" : "Inativo"}
-                        </Badge>
+                        <Badge variant={lowStock ? "warning" : "secondary"} className="hidden md:inline-flex text-xs">{product.currentStock} un</Badge>
                         <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
                       </div>
                     </Link>

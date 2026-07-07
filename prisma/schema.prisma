@@ -154,12 +154,16 @@ model Product {
   warrantyConditions String? @map("warranty_conditions")
 
   // Custos
-  costPrice    Decimal  @default(0) @map("cost_price") @db.Decimal(10, 2)
-  freightCost  Decimal  @default(0) @map("freight_cost") @db.Decimal(10, 2)
-  taxCost      Decimal  @default(0) @map("tax_cost") @db.Decimal(10, 2)
-  commission   Decimal  @default(0) @db.Decimal(10, 2)
-  packaging    Decimal  @default(0) @db.Decimal(10, 2)
-  otherCosts   Decimal  @default(0) @map("other_costs") @db.Decimal(10, 2)
+  costPrice       Decimal  @default(0) @map("cost_price") @db.Decimal(10, 2)
+  unitCostBruto   Decimal  @default(0) @map("unit_cost_bruto") @db.Decimal(10, 2)
+  itemBruto       Decimal  @default(0) @map("item_bruto") @db.Decimal(10, 2)
+  finalItemCost   Decimal  @default(0) @map("final_item_cost") @db.Decimal(10, 2)
+  piecesPerPackage Int     @default(1) @map("pieces_per_package")
+  freightCost     Decimal  @default(0) @map("freight_cost") @db.Decimal(10, 2)
+  taxCost         Decimal  @default(0) @map("tax_cost") @db.Decimal(10, 2)
+  commission      Decimal  @default(0) @db.Decimal(10, 2)
+  packaging       Decimal  @default(0) @db.Decimal(10, 2)
+  otherCosts      Decimal  @default(0) @map("other_costs") @db.Decimal(10, 2)
 
   // Preços
   salePrice        Decimal  @default(0) @map("sale_price") @db.Decimal(10, 2)

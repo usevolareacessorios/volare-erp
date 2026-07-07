@@ -112,12 +112,14 @@ export async function updateProduct(id: string, data: unknown) {
 export async function deleteProduct(id: string) {
   await prisma.product.delete({ where: { id } })
   revalidatePath("/products")
+  revalidatePath("/inventory")
   return { success: true }
 }
 
 export async function deleteProducts(ids: string[]) {
   await prisma.product.deleteMany({ where: { id: { in: ids } } })
   revalidatePath("/products")
+  revalidatePath("/inventory")
   return { success: true }
 }
 
@@ -135,6 +137,10 @@ export async function createProductsBulk(items: {
   name: string
   description?: string | null
   unitCost?: number
+  unitCostBruto?: number
+  itemBruto?: number
+  finalItemCost?: number
+  piecesPerPackage?: number
   salePrice?: number
   currentStock?: number
   categoryId?: string | null
@@ -164,12 +170,16 @@ export async function createProductsBulk(items: {
           description: item.description ?? null,
           sku,
           costPrice: item.unitCost ?? 0,
+          unitCostBruto: item.unitCostBruto ?? 0,
+          itemBruto: item.itemBruto ?? 0,
+          finalItemCost: item.finalItemCost ?? 0,
+          piecesPerPackage: item.piecesPerPackage ?? 1,
           freightCost: item.freightCost ?? 0,
           taxCost: item.taxCost ?? 0,
           commission: item.commission ?? 0,
           packaging: item.packaging ?? 0,
           otherCosts: item.otherCosts ?? 0,
-          salePrice: item.salePrice ?? (item.unitCost ? item.unitCost * 2.5 : 0),
+          salePrice: item.salePrice ?? 0,
           currentStock: item.currentStock ?? 0,
           minStock: 3,
           categoryId: item.categoryId ?? null,
