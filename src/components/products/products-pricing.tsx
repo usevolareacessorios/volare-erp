@@ -174,9 +174,16 @@ export function ProductsPricing({ products }: Props) {
                       <>
                         <tr key={p.id} className={cn("transition-colors", isExpanded ? "bg-muted/30" : "hover:bg-muted/20")}>
                           <td className="px-4 py-2.5">
-                            <Link href={`/products/${p.id}`} className="hover:text-primary transition-colors">
-                              <p className="text-sm font-medium truncate max-w-[180px]">{p.name}</p>
-                              <p className="text-xs text-muted-foreground font-mono">{p.sku}</p>
+                            <Link href={`/products/${p.id}`} className="flex items-center gap-3 hover:text-primary transition-colors">
+                              <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                                {p.images[0]
+                                  ? <Image src={p.images[0].url} alt={p.name} width={36} height={36} className="object-cover w-full h-full" />
+                                  : <Package className="w-4 h-4 text-muted-foreground" />}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium truncate max-w-[160px]">{p.name}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{p.sku}</p>
+                              </div>
                             </Link>
                           </td>
                           <td className="px-3 py-2.5 text-right text-sm">{formatCurrency(p.costPrice)}</td>
