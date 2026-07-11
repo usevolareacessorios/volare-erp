@@ -182,7 +182,9 @@ export function ProductsPricing({ products }: Props) {
                   )}
                   {filtered.map((p) => {
                     const productMargin = getMargin(p.id)
-                    const directCost = p.costPrice + p.freightCost + p.packaging
+                    const liveFreight = pendingFreight[p.id] !== undefined ? Number(pendingFreight[p.id]) : p.freightCost
+                    const livePackaging = pendingPackaging[p.id] !== undefined ? Number(pendingPackaging[p.id]) : p.packaging
+                    const directCost = p.costPrice + liveFreight + livePackaging
                     const margin = p.salePrice > 0 ? ((p.salePrice - directCost) / p.salePrice) * 100 : null
                     const suggested = directCost > 0 ? directCost / (1 - productMargin / 100) : 0
                     const isExpanded = expandedRow === p.id
