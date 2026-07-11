@@ -35,18 +35,18 @@ export function ProductsPricing({ products }: Props) {
   const [deletingBulk, setDeletingBulk] = useState(false)
   const [marginFilter, setMarginFilter] = useState<"all" | "low" | "ok" | "good">("all")
   const [targetMarkup, setTargetMarkup] = useState(40)
-  const [productMarkups, setProductMargins] = useState<Record<string, number>>({})
-  const [pendingMargins, setPendingMargins] = useState<Record<string, string>>({})
+  const [productMarkups, setProductMarkups] = useState<Record<string, number>>({})
+  const [pendingMarkups, setPendingMarkups] = useState<Record<string, string>>({})
   const [pendingFreight, setPendingFreight] = useState<Record<string, string>>({})
   const [pendingPackaging, setPendingPackaging] = useState<Record<string, string>>({})
   const [savingCosts, setSavingCosts] = useState<Record<string, boolean>>({})
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   function getMarkup(id: string) { return productMarkups[id] ?? targetMarkup }
-  function getPending(id: string) { return pendingMargins[id] ?? String(getMarkup(id)) }
-  function applyMargin(id: string) {
-    const val = Number(pendingMargins[id])
-    if (!isNaN(val) && val > 0 && val < 100) setProductMargins((prev) => ({ ...prev, [id]: val }))
+  function getPending(id: string) { return pendingMarkups[id] ?? String(getMarkup(id)) }
+  function applyMarkup(id: string) {
+    const val = Number(pendingMarkups[id])
+    if (!isNaN(val) && val > 0) setProductMarkups((prev) => ({ ...prev, [id]: val }))
   }
 
   async function saveCosts(p: Product) {
@@ -247,14 +247,14 @@ export function ProductsPricing({ products }: Props) {
                                 <input
                                   type="number" min={1} max={99}
                                   value={getPending(p.id)}
-                                  onChange={(e) => setPendingMargins((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                                  onChange={(e) => setPendingMarkups((prev) => ({ ...prev, [p.id]: e.target.value }))}
                                   onClick={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => { if (e.key === "Enter") applyMargin(p.id) }}
+                                  onKeyDown={(e) => { if (e.key === "Enter") applyMarkup(p.id) }}
                                   className="w-12 h-6 text-xs text-center border border-emerald-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                 />
                                 <span className="text-xs text-muted-foreground">%</span>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); applyMargin(p.id) }}
+                                  onClick={(e) => { e.stopPropagation(); applyMarkup(p.id) }}
                                   className="h-6 px-1.5 text-[10px] font-semibold rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                                 >
                                   OK
