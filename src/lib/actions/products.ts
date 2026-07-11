@@ -109,6 +109,18 @@ export async function updateProduct(id: string, data: unknown) {
   return { data: product }
 }
 
+export async function updateProductCosts(id: string, data: { freightCost?: number; packaging?: number }) {
+  await prisma.product.update({
+    where: { id },
+    data: {
+      ...(data.freightCost !== undefined && { freightCost: data.freightCost }),
+      ...(data.packaging !== undefined && { packaging: data.packaging }),
+    },
+  })
+  revalidatePath("/products")
+  return { success: true }
+}
+
 export async function deleteProduct(id: string) {
   await prisma.product.delete({ where: { id } })
   revalidatePath("/products")

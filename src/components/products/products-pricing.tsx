@@ -13,7 +13,7 @@ import {
   Search, Package, ChevronRight, Trash2, TrendingUp, List,
   ChevronDown, ChevronUp,
 } from "lucide-react"
-import { deleteProduct, deleteProducts } from "@/lib/actions/products"
+import { deleteProduct, deleteProducts, updateProductCosts } from "@/lib/actions/products"
 import { cn } from "@/lib/utils"
 
 type Product = {
@@ -37,6 +37,9 @@ export function ProductsPricing({ products }: Props) {
   const [targetMargin, setTargetMargin] = useState(40)
   const [productMargins, setProductMargins] = useState<Record<string, number>>({})
   const [pendingMargins, setPendingMargins] = useState<Record<string, string>>({})
+  const [pendingFreight, setPendingFreight] = useState<Record<string, string>>({})
+  const [pendingPackaging, setPendingPackaging] = useState<Record<string, string>>({})
+  const [savingCosts, setSavingCosts] = useState<Record<string, boolean>>({})
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   function getMargin(id: string) { return productMargins[id] ?? targetMargin }
@@ -44,6 +47,15 @@ export function ProductsPricing({ products }: Props) {
   function applyMargin(id: string) {
     const val = Number(pendingMargins[id])
     if (!isNaN(val) && val > 0 && val < 100) setProductMargins((prev) => ({ ...prev, [id]: val }))
+  }
+
+  async function saveCosts(p: Product) {
+    setSavingCosts((prev) => ({ ...prev, [p.id]: true }))
+    const freight = pendingFreight[p.id] !== undefined ? Number(pendingFreight[p.id]) : p.freightCost
+    const packaging = pendingPackaging[p.id] !== undefined ? Number(pendingPackaging[p.id]) : p.packaging
+    await updateProductCosts(p.id, { freightCost: freight, packaging })
+    refresh()
+    setSavingCosts((prev) => ({ ...prev, [p.id]: false }))
   }
 
   const [, startTransition] = useTransition()
@@ -192,8 +204,35 @@ export function ProductsPricing({ products }: Props) {
                             </Link>
                           </td>
                           <td className="px-3 py-2.5 text-right text-sm">{formatCurrency(p.costPrice)}</td>
-                          <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">{p.packaging > 0 ? formatCurrency(p.packaging) : "—"}</td>
-                          <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">{p.freightCost > 0 ? formatCurrency(p.freightCost) : "—"}</td>
+                          <td className="px-2 py-2.5">
+                            <input
+                              type="number" min={0} step={0.01}
+                              value={pendingPackaging[p.id] ?? p.packaging}
+                              onChange={(e) => setPendingPackaging((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                              onClick={(e) => e.stopPropagation()}
+                              placeholder="0,00"
+                              className="w-20 h-7 text-xs text-right px-2 border border-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <div className="flex items-center gap-1 justify-end">
+                              <input
+                                type="number" min={0} step={0.01}
+                                value={pendingFreight[p.id] ?? p.freightCost}
+                                onChange={(e) => setPendingFreight((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                                onClick={(e) => e.stopPropagation()}
+                                placeholder="0,00"
+                                className="w-20 h-7 text-xs text-right px-2 border border-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); saveCosts(p) }}
+                                disabled={savingCosts[p.id]}
+                                className="h-7 px-2 text-[10px] font-semibold rounded bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                              >
+                                {savingCosts[p.id] ? "..." : "OK"}
+                              </button>
+                            </div>
+                          </td>
                           <td className="px-3 py-2.5 text-right text-sm bg-orange-50 font-bold">{formatCurrency(directCost)}</td>
                           <td className="px-3 py-2.5 text-right">
                             {margin !== null
