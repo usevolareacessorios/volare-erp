@@ -36,10 +36,15 @@ export function ProductsPricing({ products }: Props) {
   const [marginFilter, setMarginFilter] = useState<"all" | "low" | "ok" | "good">("all")
   const [targetMargin, setTargetMargin] = useState(40)
   const [productMargins, setProductMargins] = useState<Record<string, number>>({})
+  const [pendingMargins, setPendingMargins] = useState<Record<string, string>>({})
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   function getMargin(id: string) { return productMargins[id] ?? targetMargin }
-  function setMargin(id: string, value: number) { setProductMargins((prev) => ({ ...prev, [id]: value })) }
+  function getPending(id: string) { return pendingMargins[id] ?? String(getMargin(id)) }
+  function applyMargin(id: string) {
+    const val = Number(pendingMargins[id])
+    if (!isNaN(val) && val > 0 && val < 100) setProductMargins((prev) => ({ ...prev, [id]: val }))
+  }
 
   const [, startTransition] = useTransition()
   const router = useRouter()
@@ -196,15 +201,23 @@ export function ProductsPricing({ products }: Props) {
                               : <span className="text-xs text-muted-foreground">—</span>}
                           </td>
                           <td className="px-3 py-2.5 bg-emerald-50">
-                            <div className="flex flex-col items-end gap-1">
+                            <div className="flex flex-col items-end gap-1.5">
                               <div className="flex items-center gap-1">
                                 <input
-                                  type="number" min={1} max={99} value={productMargin}
-                                  onChange={(e) => setMargin(p.id, Number(e.target.value))}
+                                  type="number" min={1} max={99}
+                                  value={getPending(p.id)}
+                                  onChange={(e) => setPendingMargins((prev) => ({ ...prev, [p.id]: e.target.value }))}
                                   onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => { if (e.key === "Enter") applyMargin(p.id) }}
                                   className="w-12 h-6 text-xs text-center border border-emerald-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                 />
                                 <span className="text-xs text-muted-foreground">%</span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); applyMargin(p.id) }}
+                                  className="h-6 px-1.5 text-[10px] font-semibold rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                                >
+                                  OK
+                                </button>
                               </div>
                               <p className="text-sm font-bold text-emerald-700">
                                 {suggested > 0 ? formatCurrency(suggested) : "—"}
