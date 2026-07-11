@@ -34,16 +34,16 @@ export function ProductsPricing({ products }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deletingBulk, setDeletingBulk] = useState(false)
   const [marginFilter, setMarginFilter] = useState<"all" | "low" | "ok" | "good">("all")
-  const [targetMargin, setTargetMargin] = useState(40)
-  const [productMargins, setProductMargins] = useState<Record<string, number>>({})
+  const [targetMarkup, setTargetMarkup] = useState(40)
+  const [productMarkups, setProductMargins] = useState<Record<string, number>>({})
   const [pendingMargins, setPendingMargins] = useState<Record<string, string>>({})
   const [pendingFreight, setPendingFreight] = useState<Record<string, string>>({})
   const [pendingPackaging, setPendingPackaging] = useState<Record<string, string>>({})
   const [savingCosts, setSavingCosts] = useState<Record<string, boolean>>({})
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
-  function getMargin(id: string) { return productMargins[id] ?? targetMargin }
-  function getPending(id: string) { return pendingMargins[id] ?? String(getMargin(id)) }
+  function getMarkup(id: string) { return productMarkups[id] ?? targetMarkup }
+  function getPending(id: string) { return pendingMargins[id] ?? String(getMarkup(id)) }
   function applyMargin(id: string) {
     const val = Number(pendingMargins[id])
     if (!isNaN(val) && val > 0 && val < 100) setProductMargins((prev) => ({ ...prev, [id]: val }))
@@ -66,11 +66,11 @@ export function ProductsPricing({ products }: Props) {
     const matchSearch = !search || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
     if (tab === "list") return matchSearch
     const totalCost = p.costPrice + p.freightCost + p.packaging
-    const margin = p.salePrice > 0 ? ((p.salePrice - totalCost) / p.salePrice) * 100 : 0
+    const markup = totalCost > 0 && p.salePrice > 0 ? ((p.salePrice - totalCost) / totalCost) * 100 : 0
     const matchMargin = marginFilter === "all"
-      || (marginFilter === "low" && margin < 15)
-      || (marginFilter === "ok" && margin >= 15 && margin < 30)
-      || (marginFilter === "good" && margin >= 30)
+      || (marginFilter === "low" && markup < 15)
+      || (marginFilter === "ok" && markup >= 15 && markup < 30)
+      || (marginFilter === "good" && markup >= 30)
     return matchSearch && matchMargin
   })
 
@@ -150,9 +150,9 @@ export function ProductsPricing({ products }: Props) {
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Margem alvo:</span>
-              <Input type="number" min={1} max={99} value={targetMargin}
-                onChange={(e) => setTargetMargin(Number(e.target.value))}
+              <span className="text-xs text-muted-foreground">Markup padrão:</span>
+              <Input type="number" min={1} max={99} value={targetMarkup}
+                onChange={(e) => setTargetMarkup(Number(e.target.value))}
                 className="w-16 h-7 text-xs text-center" />
               <span className="text-xs text-muted-foreground">%</span>
             </div>
@@ -169,9 +169,9 @@ export function ProductsPricing({ products }: Props) {
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Embalagem</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Frete</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-orange-50">Custo total</th>
-                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Margem</th>
+                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Markup real</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-emerald-700 uppercase tracking-wider bg-emerald-50">
-                      Sugestão {targetMargin}%
+                      Sugestão +{targetMarkup}%
                     </th>
                     <th className="w-8" />
                   </tr>
@@ -181,12 +181,12 @@ export function ProductsPricing({ products }: Props) {
                     <tr><td colSpan={8} className="py-12 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</td></tr>
                   )}
                   {filtered.map((p) => {
-                    const productMargin = getMargin(p.id)
+                    const productMarkup = getMarkup(p.id)
                     const liveFreight = pendingFreight[p.id] !== undefined ? Number(pendingFreight[p.id]) : p.freightCost
                     const livePackaging = pendingPackaging[p.id] !== undefined ? Number(pendingPackaging[p.id]) : p.packaging
                     const directCost = p.costPrice + liveFreight + livePackaging
-                    const margin = p.salePrice > 0 ? ((p.salePrice - directCost) / p.salePrice) * 100 : null
-                    const suggested = directCost > 0 ? directCost / (1 - productMargin / 100) : 0
+                    const margin = directCost > 0 && p.salePrice > 0 ? ((p.salePrice - directCost) / directCost) * 100 : null
+                    const suggested = directCost > 0 ? directCost * (1 + productMarkup / 100) : 0
                     const isExpanded = expandedRow === p.id
 
                     return (
@@ -301,7 +301,7 @@ export function ProductsPricing({ products }: Props) {
                                   </div>
                                   <div className="flex justify-between text-muted-foreground text-xs pt-2">
                                     <span>Fórmula do preço sugerido</span>
-                                    <span className="font-mono">{formatCurrency(directCost)} ÷ (1 − {productMargin}%)</span>
+                                    <span className="font-mono">{formatCurrency(directCost)} × (1 + {productMarkup}%)</span>
                                   </div>
                                   <div className="flex justify-between font-bold text-base text-emerald-700 pt-1 border-t border-emerald-200">
                                     <span>= Preço sugerido</span>
@@ -361,7 +361,7 @@ export function ProductsPricing({ products }: Props) {
                 const margin = product.salePrice > 0 ? Math.round(((product.salePrice - directCost) / product.salePrice) * 100) : null
                 const lowStock = product.currentStock <= 3
                 const isSelected = selected.has(product.id)
-                const suggested = directCost > 0 ? directCost / (1 - targetMargin / 100) : 0
+                const suggested = directCost > 0 ? directCost * (1 + targetMarkup / 100) : 0
                 const belowSuggested = product.salePrice > 0 && suggested > 0 && product.salePrice < suggested
 
                 return (
