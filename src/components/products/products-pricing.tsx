@@ -355,15 +355,17 @@ export function ProductsPricing({ products }: Props) {
       {tab === "list" && (
         <Card>
           <CardContent className="p-0">
-            <div className="hidden md:grid grid-cols-[auto_auto_2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 border-b border-border bg-muted/40 rounded-t-xl items-center">
+            {/* Header */}
+            <div className="hidden md:grid grid-cols-[1.6rem_2.5rem_1fr_7rem_7rem_7rem_7rem_6rem_2rem] gap-x-4 px-4 py-2.5 border-b border-border bg-muted/40 rounded-t-xl items-center">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-4 h-4 rounded accent-primary cursor-pointer" />
-              <span className="w-10" />
+              <span />
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Produto</span>
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custo prod.</span>
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custo total</span>
-              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Sugerido</span>
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Venda atual</span>
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Estoque</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Custo prod.</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Custo total</span>
+              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider text-right">Sugerido</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Venda atual</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Estoque</span>
+              <span />
             </div>
 
             <div className="divide-y divide-border">
@@ -373,58 +375,61 @@ export function ProductsPricing({ products }: Props) {
               {filtered.map((product) => {
                 const primaryImage = product.images[0]
                 const directCost = product.costPrice + product.freightCost + product.packaging
-                const margin = product.salePrice > 0 ? Math.round(((product.salePrice - directCost) / product.salePrice) * 100) : null
-                const lowStock = product.currentStock <= 3
                 const isSelected = selected.has(product.id)
                 const suggested = directCost > 0 ? directCost * (1 + targetMarkup / 100) : 0
                 const belowSuggested = product.salePrice > 0 && suggested > 0 && product.salePrice < suggested
 
                 return (
-                  <div key={product.id} className={`group flex items-center gap-3 px-4 py-3 transition-colors ${isSelected ? "bg-primary/5" : "hover:bg-muted/30"}`}>
+                  <div key={product.id} className={`group grid grid-cols-[1.6rem_2.5rem_1fr_7rem_7rem_7rem_7rem_6rem_2rem] gap-x-4 px-4 py-3 items-center transition-colors ${isSelected ? "bg-primary/5" : "hover:bg-muted/30"}`}>
                     <input type="checkbox" checked={isSelected} onChange={() => toggleOne(product.id)}
-                      onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded accent-primary cursor-pointer shrink-0" />
+                      onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded accent-primary cursor-pointer" />
 
-                    <Link href={`/products/${product.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                        {primaryImage
-                          ? <Image src={primaryImage.url} alt={product.name} width={40} height={40} className="object-cover w-full h-full" />
-                          : <Package className="w-4 h-4 text-muted-foreground" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium group-hover:text-primary transition-colors truncate">{product.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{product.sku}</p>
-                      </div>
-                      {/* Custo produto */}
-                      <div className="hidden md:block w-24 shrink-0">
-                        <p className="text-sm">{formatCurrency(product.costPrice)}</p>
-                      </div>
-                      {/* Custo total */}
-                      <div className="hidden md:block w-24 shrink-0">
-                        <p className="text-sm font-semibold">{formatCurrency(directCost)}</p>
-                      </div>
-                      {/* Preço sugerido */}
-                      <div className="hidden md:block w-24 shrink-0">
-                        <p className="text-sm font-semibold text-emerald-700">{suggested > 0 ? formatCurrency(suggested) : "—"}</p>
-                      </div>
-                      {/* Preço de venda atual */}
-                      <div className="hidden md:block w-24 shrink-0">
-                        <p className={`text-sm font-semibold ${belowSuggested ? "text-destructive" : "text-foreground"}`}>
-                          {product.salePrice > 0 ? formatCurrency(product.salePrice) : "—"}
-                        </p>
-                        {belowSuggested && <p className="text-[10px] text-destructive leading-tight">abaixo do sugerido</p>}
-                      </div>
-                      {/* Estoque */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant="secondary" className="hidden md:inline-flex text-xs">{product.currentStock} un</Badge>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
-                      </div>
+                    {/* Thumbnail */}
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                      {primaryImage
+                        ? <Image src={primaryImage.url} alt={product.name} width={40} height={40} className="object-cover w-full h-full" />
+                        : <Package className="w-4 h-4 text-muted-foreground" />}
+                    </div>
+
+                    {/* Nome */}
+                    <Link href={`/products/${product.id}`} className="min-w-0">
+                      <p className="text-sm font-medium group-hover:text-primary transition-colors truncate">{product.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{product.sku}</p>
                     </Link>
 
-                    <button onClick={(e) => handleDelete(e, product.id)} disabled={deletingId === product.id}
-                      className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
-                      title="Excluir produto">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Custo produto */}
+                    <p className="text-sm text-right hidden md:block">{formatCurrency(product.costPrice)}</p>
+
+                    {/* Custo total */}
+                    <p className="text-sm font-semibold text-right hidden md:block">{formatCurrency(directCost)}</p>
+
+                    {/* Sugerido */}
+                    <p className="text-sm font-semibold text-emerald-700 text-right hidden md:block">{suggested > 0 ? formatCurrency(suggested) : "—"}</p>
+
+                    {/* Venda atual */}
+                    <div className="text-right hidden md:block">
+                      <p className={`text-sm font-semibold ${belowSuggested ? "text-destructive" : "text-foreground"}`}>
+                        {product.salePrice > 0 ? formatCurrency(product.salePrice) : "—"}
+                      </p>
+                      {belowSuggested && <p className="text-[10px] text-destructive leading-tight">abaixo do sugerido</p>}
+                    </div>
+
+                    {/* Estoque */}
+                    <div className="flex justify-end items-center gap-1 hidden md:flex">
+                      <Badge variant="secondary" className="text-xs">{product.currentStock} un</Badge>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="flex justify-end items-center gap-1">
+                      <button onClick={(e) => handleDelete(e, product.id)} disabled={deletingId === product.id}
+                        className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                        title="Excluir produto">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <Link href={`/products/${product.id}`}>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                      </Link>
+                    </div>
                   </div>
                 )
               })}
