@@ -54,6 +54,8 @@ export default async function ProductsPage() {
               costPrice: Number(p.costPrice),
               freightCost: Number((p as any).freightCost ?? 0),
               packaging: Number((p as any).packaging ?? 0),
+              createdAt: p.createdAt,
+              updatedAt: p.updatedAt,
               category: (p as any).category?.name ?? null,
               images: (p as any).images ?? [],
             }))}

@@ -21,6 +21,7 @@ type Product = {
   currentStock: number; salePrice: number; costPrice: number
   freightCost: number; packaging: number
   category: string | null; images: { url: string }[]
+  createdAt: Date; updatedAt: Date
 }
 
 type Props = {
@@ -33,6 +34,7 @@ export function ProductsPricing({ products }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deletingBulk, setDeletingBulk] = useState(false)
+  const [sortBy, setSortBy] = useState<"createdAt" | "updatedAt">("createdAt")
   const [marginFilter, setMarginFilter] = useState<"all" | "low" | "ok" | "good">("all")
   const [targetMarkup, setTargetMarkup] = useState(40)
   const [productMarkups, setProductMarkups] = useState<Record<string, number>>({})
@@ -72,7 +74,7 @@ export function ProductsPricing({ products }: Props) {
       || (marginFilter === "ok" && markup >= 15 && markup < 30)
       || (marginFilter === "good" && markup >= 30)
     return matchSearch && matchMargin
-  })
+  }).sort((a, b) => new Date(b[sortBy]).getTime() - new Date(a[sortBy]).getTime())
 
   const allSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id))
   function toggleAll() { setSelected(allSelected ? new Set() : new Set(filtered.map((p) => p.id))) }
@@ -119,6 +121,19 @@ export function ProductsPricing({ products }: Props) {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Buscar por nome ou SKU..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+
+        <div className="flex gap-1 p-1 rounded-lg bg-muted">
+          <button onClick={() => setSortBy("createdAt")}
+            className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+              sortBy === "createdAt" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            Mais recentes
+          </button>
+          <button onClick={() => setSortBy("updatedAt")}
+            className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+              sortBy === "updatedAt" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            Modificados
+          </button>
         </div>
 
         {selected.size > 0 && (
