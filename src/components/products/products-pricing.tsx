@@ -34,7 +34,7 @@ export function ProductsPricing({ products }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deletingBulk, setDeletingBulk] = useState(false)
-  const [sortBy, setSortBy] = useState<"createdAt" | "updatedAt">("createdAt")
+  const [sortBy, setSortBy] = useState<"createdAt" | "updatedAt">("updatedAt")
   const [marginFilter, setMarginFilter] = useState<"all" | "low" | "ok" | "good">("all")
   const [targetMarkup, setTargetMarkup] = useState(40)
   const [productMarkups, setProductMarkups] = useState<Record<string, number>>({})
