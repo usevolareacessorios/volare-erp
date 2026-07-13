@@ -415,7 +415,7 @@ export function ProductsPricing({ products }: Props) {
                       </div>
                       {/* Estoque */}
                       <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant={lowStock ? "warning" : "secondary"} className="hidden md:inline-flex text-xs">{product.currentStock} un</Badge>
+                        <Badge variant="secondary" className="hidden md:inline-flex text-xs">{product.currentStock} un</Badge>
                         <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
                       </div>
                     </Link>
