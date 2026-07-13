@@ -245,7 +245,7 @@ export function ProductsPricing({ products }: Props) {
                             <div className="flex flex-col items-end gap-1.5">
                               <div className="flex items-center gap-1">
                                 <input
-                                  type="number" min={1} max={99}
+                                  type="number" min={1}
                                   value={getPending(p.id)}
                                   onChange={(e) => setPendingMarkups((prev) => ({ ...prev, [p.id]: e.target.value }))}
                                   onClick={(e) => e.stopPropagation()}
